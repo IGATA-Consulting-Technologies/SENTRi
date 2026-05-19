@@ -1,0 +1,64 @@
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
+import { useAuthStore, useGuardStore } from './store'
+import GateApp from './pages/gate/GateApp'
+import CommandApp from './pages/command/CommandApp'
+import AdminApp from './pages/admin/AdminApp'
+import CommandLogin from './pages/auth/CommandLogin'
+import NotFound from './pages/NotFound'
+
+// Gate route — loads tenant + gate from URL params
+function GateRoute() {
+  const { tenantSlug, gateSlug } = useParams()
+  return <GateApp tenantSlug={tenantSlug} gateSlug={gateSlug} />
+}
+
+// Command route — requires auth
+function CommandRoute() {
+  const { isAuthenticated, officer } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (officer?.role === 'admin') return <Navigate to="/admin" replace />
+  return <CommandApp />
+}
+
+// Admin route — requires admin role
+function AdminRoute() {
+  const { isAuthenticated, officer } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (officer?.role !== 'admin') return <Navigate to="/command" replace />
+  return <AdminApp />
+}
+
+export default function App() {
+  const { setOnline, restoreSession } = useAuthStore()
+  const { setOnline: guardSetOnline } = useGuardStore()
+
+  useEffect(() => {
+    restoreSession()
+    const on = () => { setOnline(true); guardSetOnline(true) }
+    const off = () => { setOnline(false); guardSetOnline(false) }
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Guard PWA — one URL per gate, no login */}
+        <Route path="/gate/:tenantSlug/:gateSlug" element={<GateRoute />} />
+
+        {/* Command dashboard — CO, COS, Intelligence */}
+        <Route path="/command/*" element={<CommandRoute />} />
+        <Route path="/login" element={<CommandLogin />} />
+
+        {/* IGATA Superadmin */}
+        <Route path="/admin/*" element={<AdminRoute />} />
+
+        {/* Root redirect */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}

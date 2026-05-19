@@ -1,0 +1,391 @@
+// LiveTab.jsx
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store'
+
+function dur(entry) {
+  const m = Math.round((Date.now() - new Date(entry)) / 60000)
+  return m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`
+}
+
+export function LiveTab() {
+  const { tenant } = useAuthStore()
+  const [live, setLive] = useState([])
+  const [stats, setStats] = useState({})
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { if (tenant?.id) load() }, [tenant])
+
+  async function load() {
+    setLoading(true)
+    const today = new Date(); today.setHours(0,0,0,0)
+    const [liveRes, todayRes] = await Promise.all([
+      supabase.from('movements').select('*, gates(name)').eq('tenant_id', tenant.id).is('exit_time', null).order('entry_time', { ascending: false }),
+      supabase.from('movements').select('id, flag_triggered, duration_minutes').eq('tenant_id', tenant.id).gte('entry_time', today.toISOString())
+    ])
+    setLive(liveRes.data || [])
+    const td = todayRes.data || []
+    const durations = td.filter(m => m.duration_minutes).map(m => m.duration_minutes)
+    setStats({ inside: (liveRes.data || []).length, total: td.length, flagged: td.filter(m => m.flag_triggered).length, avgDur: durations.length ? Math.round(durations.reduce((a,b) => a+b, 0) / durations.length) : 0 })
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        {[
+          { label: 'Inside now', value: stats.inside ?? '—', color: 'var(--green)' },
+          { label: 'Today total', value: stats.total ?? '—', color: 'var(--text-0)' },
+          { label: 'Flag hits', value: stats.flagged ?? '—', color: stats.flagged > 0 ? 'var(--red)' : 'var(--text-0)' },
+          { label: 'Avg stay', value: stats.avgDur ? `${stats.avgDur}m` : '—', color: 'var(--text-0)' }
+        ].map(s => (
+          <div key={s.label} className="card" style={{ padding: '14px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-2)', marginBottom: '6px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+            <div style={{ fontSize: '26px', fontWeight: '700', fontFamily: 'var(--font-display)', color: s.color, lineHeight: 1 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div className="section-label">Currently inside ({live.length})</div>
+        <button className="btn btn-ghost btn-sm" onClick={load}>↻ Refresh</button>
+      </div>
+      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+        : live.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>No vehicles currently inside.</div>
+        : live.map(m => (
+          <div key={m.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderColor: m.flag_triggered ? 'rgba(192,19,42,0.35)' : 'var(--border)' }}>
+            {m.flag_triggered && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--red)', flexShrink: 0 }} className="pulse-red" />}
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                {m.plate_number && <span className="plate">{m.plate_number}</span>}
+                {m.visitor_name && <span style={{ fontSize: '13px', color: 'var(--text-1)' }}>{m.visitor_name}</span>}
+                {m.flag_triggered && <span className="pill pill-red">Flagged</span>}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>{m.destination} · {m.purpose} · {m.gates?.name}</div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--amber)', fontWeight: '600' }}>{dur(m.entry_time)}</div>
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  )
+}
+
+// WatchlistTab.jsx
+export function WatchlistTab() {
+  const { tenant, officer } = useAuthStore()
+  const [watchlist, setWatchlist] = useState([])
+  const [type, setType] = useState('plate')
+  const [value, setValue] = useState('')
+  const [reason, setReason] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { if (tenant?.id) load() }, [tenant])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('watchlist').select('*, officers(name, rank)').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at', { ascending: false })
+    setWatchlist(data || []); setLoading(false)
+  }
+
+  async function addFlag() {
+    if (!value.trim()) return
+    setAdding(true)
+    await supabase.from('watchlist').insert({ tenant_id: tenant.id, type, value: value.trim().toUpperCase(), reason: reason.trim(), added_by: officer.id, is_active: true })
+    setValue(''); setReason(''); setAdding(false); load()
+  }
+
+  async function removeFlag(id) {
+    await supabase.from('watchlist').update({ is_active: false }).eq('id', id)
+    setWatchlist(prev => prev.filter(w => w.id !== id))
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <div className="card" style={{ marginBottom: '20px' }}>
+        <div className="section-label" style={{ marginBottom: '14px' }}>Add to watchlist</div>
+        <div className="field-row" style={{ marginBottom: '10px' }}>
+          <div className="field" style={{ marginBottom: 0 }}><label>Watch type</label><select value={type} onChange={e => setType(e.target.value)}><option value="plate">Plate number</option><option value="name">Visitor name</option><option value="id_number">ID number</option></select></div>
+          <div className="field" style={{ marginBottom: 0 }}><label>Value</label><input type="text" placeholder={type === 'plate' ? 'e.g. LND 472 HG' : 'Enter value'} value={value} onChange={e => setValue(e.target.value)} style={{ fontFamily: type === 'plate' ? 'var(--font-mono)' : 'inherit', letterSpacing: type === 'plate' ? '0.06em' : 0 }} /></div>
+        </div>
+        <div className="field" style={{ marginBottom: '14px' }}><label>Reason (internal — never shown to guards)</label><input type="text" placeholder="Intelligence note…" value={reason} onChange={e => setReason(e.target.value)} /></div>
+        <button className="btn btn-danger" onClick={addFlag} disabled={adding || !value.trim()}>{adding ? 'Adding…' : '+ Flag this entry'}</button>
+      </div>
+      <div className="section-label">Active flags ({watchlist.length})</div>
+      {loading ? <div style={{ padding: '20px', color: 'var(--text-2)', textAlign: 'center' }}>Loading…</div>
+        : watchlist.length === 0 ? <div style={{ padding: '20px', color: 'var(--text-2)', textAlign: 'center' }}>No active flags.</div>
+        : watchlist.map(w => (
+          <div key={w.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', borderColor: 'rgba(192,19,42,0.25)', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span className={w.type === 'plate' ? 'plate' : 'pill pill-amber'}>{w.value}</span>
+                <span className="pill pill-gray">{w.type}</span>
+              </div>
+              {w.reason && <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '3px' }}>{w.reason}</div>}
+              <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>Added by {w.officers?.rank} {w.officers?.name?.split(' ')[0]}</div>
+            </div>
+            <button className="btn btn-ghost btn-sm" onClick={() => removeFlag(w.id)} style={{ color: 'var(--red)', flexShrink: 0 }}>Remove</button>
+          </div>
+        ))
+      }
+    </div>
+  )
+}
+
+// AlertsTab.jsx
+export function AlertsTab({ onUnreadChange }) {
+  const { tenant, officer } = useAuthStore()
+  const [alerts, setAlerts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (tenant?.id) load()
+    const sub = supabase.channel('flag-alerts').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'flag_alerts', filter: `tenant_id=eq.${tenant?.id}` }, payload => {
+      setAlerts(prev => [payload.new, ...prev])
+    }).subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [tenant])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('flag_alerts').select('*, movements(plate_number, visitor_name, destination, purpose), watchlist(value, type, reason)').eq('tenant_id', tenant.id).order('alerted_at', { ascending: false }).limit(50)
+    setAlerts(data || [])
+    const unread = (data || []).filter(a => !a.acknowledged).length
+    onUnreadChange(unread)
+    setLoading(false)
+  }
+
+  async function acknowledge(id) {
+    await supabase.from('flag_alerts').update({ acknowledged: true, acknowledged_at: new Date().toISOString(), acknowledged_by: officer.id }).eq('id', id)
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a))
+    const unread = alerts.filter(a => !a.acknowledged && a.id !== id).length
+    onUnreadChange(unread)
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <div className="section-label" style={{ marginBottom: '14px' }}>Flag alerts</div>
+      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+        : alerts.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>No alerts yet.</div>
+        : alerts.map(a => (
+          <div key={a.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', borderLeft: !a.acknowledged ? `3px solid var(--red)` : '1px solid var(--border)', opacity: a.acknowledged ? 0.6 : 1, display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+            {!a.acknowledged && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--red)', flexShrink: 0, marginTop: '4px' }} />}
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                <span className="plate">{a.watchlist?.value || a.movements?.plate_number}</span>
+                <span className="pill pill-red">Flag hit</span>
+              </div>
+              <div style={{ fontSize: '13px', marginBottom: '3px' }}>{a.movements?.destination} · {a.movements?.purpose}</div>
+              {a.watchlist?.reason && <div style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '3px' }}>⚠ {a.watchlist.reason}</div>}
+              <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>{new Date(a.alerted_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+            {!a.acknowledged && (
+              <button className="btn btn-ghost btn-sm" onClick={() => acknowledge(a.id)} style={{ flexShrink: 0, fontSize: '12px' }}>Acknowledge</button>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  )
+}
+
+// ReportTab.jsx
+export function ReportTab() {
+  const { tenant } = useAuthStore()
+  const [report, setReport] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { if (tenant?.id) load() }, [tenant])
+
+  async function load() {
+    setLoading(true)
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const { data } = await supabase.from('movements').select('type, destination, purpose, duration_minutes, flag_triggered, plate_number, entry_time').eq('tenant_id', tenant.id).gte('entry_time', weekAgo.toISOString())
+    if (data) {
+      const byDay = {}
+      data.forEach(m => { const day = new Date(m.entry_time).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); byDay[day] = (byDay[day] || 0) + 1 })
+      const topDest = {}
+      data.forEach(m => { topDest[m.destination] = (topDest[m.destination] || 0) + 1 })
+      const plateCount = {}
+      data.filter(m => m.plate_number).forEach(m => { plateCount[m.plate_number] = (plateCount[m.plate_number] || 0) + 1 })
+      const durations = data.filter(m => m.duration_minutes).map(m => m.duration_minutes)
+      setReport({
+        total: data.length, vehicles: data.filter(m => m.type === 'vehicle').length, pedestrians: data.filter(m => m.type === 'pedestrian').length,
+        flagged: data.filter(m => m.flag_triggered).length,
+        avgDur: durations.length ? Math.round(durations.reduce((a,b) => a+b, 0) / durations.length) : 0,
+        byDay: Object.entries(byDay).slice(-7),
+        topDest: Object.entries(topDest).sort((a,b) => b[1]-a[1]).slice(0, 6),
+        repeatPlates: Object.entries(plateCount).filter(([,c]) => c >= 2).sort((a,b) => b[1]-a[1]).slice(0, 5)
+      })
+    }
+    setLoading(false)
+  }
+
+  if (loading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+  if (!report) return null
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Weekly report</h2>
+      <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Last 7 days · {tenant?.name}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        {[{ label: 'Total movements', value: report.total }, { label: 'Vehicles', value: report.vehicles }, { label: 'Pedestrians', value: report.pedestrians }, { label: 'Flag hits', value: report.flagged, color: report.flagged > 0 ? 'var(--red)' : undefined }, { label: 'Avg stay', value: `${report.avgDur}m` }].map(s => (
+          <div key={s.label} className="card" style={{ padding: '14px' }}>
+            <div style={{ fontSize: '10px', color: 'var(--text-2)', marginBottom: '5px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', fontFamily: 'var(--font-display)', color: s.color || 'var(--text-0)', lineHeight: 1 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div className="card">
+          <div className="section-label" style={{ marginBottom: '10px' }}>Daily breakdown</div>
+          {report.byDay.map(([day, count]) => (
+            <div key={day} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: '13px' }}>
+              <span style={{ color: 'var(--text-1)' }}>{day}</span><span style={{ fontWeight: '600', fontFamily: 'var(--font-mono)' }}>{count}</span>
+            </div>
+          ))}
+        </div>
+        <div className="card">
+          <div className="section-label" style={{ marginBottom: '10px' }}>Top destinations</div>
+          {report.topDest.map(([dest, count]) => (
+            <div key={dest} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--border)', fontSize: '12px' }}>
+              <span style={{ color: 'var(--text-1)' }}>{dest.split(' ')[0]}</span><span style={{ fontWeight: '600', fontFamily: 'var(--font-mono)' }}>{count}</span>
+            </div>
+          ))}
+        </div>
+        {report.repeatPlates.length > 0 && (
+          <div className="card" style={{ gridColumn: '1/-1' }}>
+            <div className="section-label" style={{ marginBottom: '10px', color: 'var(--amber)' }}>⚠ Repeat vehicles (2+ visits)</div>
+            {report.repeatPlates.map(([plate, count]) => (
+              <div key={plate} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
+                <span className="plate">{plate}</span><span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: '600' }}>{count} visits</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// GatesTab.jsx - Shows gate URLs for this installation
+export function GatesTab() {
+  const { tenant } = useAuthStore()
+  const [gates, setGates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(null)
+  const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
+
+  useEffect(() => { if (tenant?.id) load() }, [tenant])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('gates').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
+    setGates(data || []); setLoading(false)
+  }
+
+  function copyUrl(gate) {
+    const url = `${appUrl}/gate/${tenant.slug}/${gate.slug}`
+    navigator.clipboard.writeText(url)
+    setCopied(gate.id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const appUrl2 = import.meta.env.VITE_APP_URL || window.location.origin
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Gate URLs</h2>
+      <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '6px' }}>Each gate has a unique URL. Send it to the device at that gate. Guards open it and install as a PWA.</p>
+      <div className="alert alert-info" style={{ marginBottom: '20px' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Copy the URL and send via WhatsApp or SMS to the guard's phone. They open it in Chrome and tap "Add to home screen."
+      </div>
+      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+        : gates.map(gate => {
+          const url = `${appUrl2}/gate/${tenant?.slug}/${gate.slug}`
+          return (
+            <div key={gate.id} className="card" style={{ marginBottom: '10px', padding: '16px 18px' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '15px', marginBottom: '4px' }}>{gate.name}</div>
+              {gate.location && <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '10px' }}>{gate.location}</div>}
+              <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border-med)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-1)', marginBottom: '10px', wordBreak: 'break-all' }}>
+                {url}
+              </div>
+              <button className="btn btn-primary btn-sm" onClick={() => copyUrl(gate)}>
+                {copied === gate.id ? '✓ Copied!' : 'Copy URL'}
+              </button>
+            </div>
+          )
+        })
+      }
+    </div>
+  )
+}
+
+// ProfileTab.jsx
+export function ProfileTab() {
+  const { tenant, officer } = useAuthStore()
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [reportEmails, setReportEmails] = useState((tenant?.report_emails || []).join(', '))
+  const [frequency, setFrequency] = useState(tenant?.report_frequency || 'both')
+
+  async function saveReportSettings() {
+    setSaving(true)
+    const emails = reportEmails.split(',').map(e => e.trim()).filter(Boolean)
+    await supabase.from('tenants').update({ report_emails: emails, report_frequency: frequency }).eq('id', tenant.id)
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>Installation profile</h2>
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <div className="section-label" style={{ marginBottom: '14px' }}>Installation details</div>
+        {[
+          { label: 'Name', value: tenant?.name },
+          { label: 'Sector', value: tenant?.sector },
+          { label: 'Branch', value: tenant?.branch || '—' },
+          { label: 'City', value: tenant?.city || '—' },
+          { label: 'State', value: tenant?.state || '—' }
+        ].map(r => (
+          <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '14px' }}>
+            <span style={{ color: 'var(--text-2)' }}>{r.label}</span><span style={{ fontWeight: '500' }}>{r.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <div className="section-label" style={{ marginBottom: '14px' }}>Intelligence reports</div>
+        <div className="field">
+          <label>Report recipients (comma-separated emails)</label>
+          <input type="text" placeholder="co@installation.mil.ng, cos@installation.mil.ng" value={reportEmails} onChange={e => setReportEmails(e.target.value)} />
+        </div>
+        <div className="field" style={{ marginBottom: '14px' }}>
+          <label>Report frequency</label>
+          <select value={frequency} onChange={e => setFrequency(e.target.value)}>
+            <option value="weekly">Weekly only</option>
+            <option value="monthly">Monthly only</option>
+            <option value="both">Weekly + Monthly</option>
+          </select>
+        </div>
+        <button className="btn btn-primary" onClick={saveReportSettings} disabled={saving}>
+          {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save report settings'}
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="section-label" style={{ marginBottom: '14px' }}>Logged in as</div>
+        <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>{officer?.rank} {officer?.name}</div>
+        <div style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '2px' }}>{officer?.email}</div>
+        <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>Role: {officer?.role}</div>
+      </div>
+    </div>
+  )
+}
+
+export default LiveTab
