@@ -48,7 +48,7 @@ export default function GatesTab() {
   }
 
   function copyUrl(gate) {
-    navigator.clipboard.writeText(`${appUrl}/gate/${tenant.slug}/${gate.slug}`)
+    navigator.clipboard.writeText(appUrl + '/gate/' + tenant.slug + '/' + gate.slug)
     setCopied(gate.id)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -82,16 +82,20 @@ export default function GatesTab() {
           <button className="btn-primary" onClick={createGate} disabled={creating}>{creating ? 'Creating...' : 'Create Gate'}</button>
         </div>
       )}
-      {loading ? <div className="loading-state">Loading gates...</div> : gates.length === 0 ? (
+      {loading ? (
+        <div className="loading-state">Loading gates...</div>
+      ) : gates.length === 0 ? (
         <div className="empty-state"><p>No gates configured yet. Add your first gate above.</p></div>
       ) : (
         <div className="gates-list">
           {gates.map(gate => (
-            <div key={gate.id} className={`gate-card ${!gate.is_active ? 'gate-inactive' : ''}`}>
+            <div key={gate.id} className={'gate-card' + (!gate.is_active ? ' gate-inactive' : '')}>
               <div className="gate-info">
                 <div className="gate-name-row">
                   <span className="gate-name">{gate.name}</span>
-                  <span className={`badge ${gate.is_active ? 'badge-green' : 'badge-grey'}`}>{gate.is_active ? 'Active' : 'Inactive'}</span>
+                  <span className={'badge ' + (gate.is_active ? 'badge-green' : 'badge-grey')}>
+                    {gate.is_active ? 'Active' : 'Inactive'}
+                  </span>
                 </div>
                 {gate.location && <span className="gate-location">{gate.location}</span>}
                 <div className="gate-url-row">
@@ -99,8 +103,12 @@ export default function GatesTab() {
                 </div>
               </div>
               <div className="gate-actions">
-                <button className={`btn-copy ${copied === gate.id ? 'copied' : ''}`} onClick={() => copyUrl(gate)}>{copied === gate.id ? 'Copied!' : 'Copy URL'}</button>
-                <button className="btn-ghost" onClick={() => toggleGate(gate)}>{gate.is_active ? 'Deactivate' : 'Activate'}</button>
+                <button className={'btn-copy' + (copied === gate.id ? ' copied' : '')} onClick={() => copyUrl(gate)}>
+                  {copied === gate.id ? 'Copied!' : 'Copy URL'}
+                </button>
+                <button className="btn-ghost" onClick={() => toggleGate(gate)}>
+                  {gate.is_active ? 'Deactivate' : 'Activate'}
+                </button>
               </div>
             </div>
           ))}

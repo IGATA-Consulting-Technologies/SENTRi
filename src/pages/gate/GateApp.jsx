@@ -27,9 +27,11 @@ export default function GateApp() {
 
   async function loadGate() {
     setLoading(true)
-    const { data: tenantData, error: tenantErr } = await supabase.from('tenants').select('*').eq('slug', tenantSlug).eq('is_active', true).single()
+    const { data: tenantData, error: tenantErr } = await supabase
+      .from('tenants').select('*').eq('slug', tenantSlug).eq('is_active', true).single()
     if (tenantErr || !tenantData) { setError('Installation not found or inactive.'); setLoading(false); return }
-    const { data: gateData, error: gateErr } = await supabase.from('gates').select('*').eq('tenant_id', tenantData.id).eq('slug', gateSlug).eq('is_active', true).single()
+    const { data: gateData, error: gateErr } = await supabase
+      .from('gates').select('*').eq('tenant_id', tenantData.id).eq('slug', gateSlug).eq('is_active', true).single()
     if (gateErr || !gateData) { setError('Gate not found or inactive.'); setLoading(false); return }
     useGuardStore.getState().setTenant(tenantData)
     useGuardStore.getState().setGate(gateData)
@@ -64,7 +66,11 @@ export default function GateApp() {
       <main className="gate-main">{renderContent()}</main>
       <nav className="gate-nav">
         {TABS.map(tab => (
-          <button key={tab.key} className={`gate-nav-btn ${activeTab === tab.key ? 'active' : ''} ${tab.key === 'incident' ? 'incident-tab' : ''}`} onClick={() => setActiveTab(tab.key)}>
+          <button
+            key={tab.key}
+            className={'gate-nav-btn' + (activeTab === tab.key ? ' active' : '') + (tab.key === 'incident' ? ' incident-tab' : '')}
+            onClick={() => setActiveTab(tab.key)}
+          >
             <span className="nav-icon">{tab.icon}</span>
             <span>{tab.label}</span>
           </button>

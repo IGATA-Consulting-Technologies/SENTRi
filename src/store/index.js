@@ -11,7 +11,6 @@ export const useAuthStore = create(
       authLoading: false,
       authError: null,
       isOnline: navigator.onLine,
-
       login: async (email, password) => {
         set({ authLoading: true, authError: null })
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
@@ -28,17 +27,15 @@ export const useAuthStore = create(
         }
         set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true, authLoading: false, authError: null })
       },
-
       logout: async () => {
         await supabase.auth.signOut()
         set({ officer: null, tenant: null, isAuthenticated: false })
       },
-
       setOnline: (val) => set({ isOnline: val }),
     }),
     {
       name: 'sentri-auth',
-      partialize: (state) => ({ officer: state.officer, tenant: state.tenant, isAuthenticated: state.isAuthenticated }),
+      partialize: (s) => ({ officer: s.officer, tenant: s.tenant, isAuthenticated: s.isAuthenticated }),
     }
   )
 )
@@ -53,23 +50,20 @@ export const useGuardStore = create(
       shiftStart: null,
       shiftLogId: null,
       activeTab: 'admit',
-
       setTenant: (tenant) => set({ tenant }),
       setGate: (gate) => set({ gate }),
       setActiveTab: (tab) => set({ activeTab: tab }),
-
       startShift: ({ guard, shiftLogId }) => set({
         onShift: true, guard, shiftLogId,
         shiftStart: new Date().toISOString(), activeTab: 'admit',
       }),
-
       endShift: () => set({ onShift: false, guard: null, shiftLogId: null, shiftStart: null, activeTab: 'admit' }),
     }),
     {
       name: 'sentri-guard-shift',
-      partialize: (state) => ({
-        onShift: state.onShift, guard: state.guard, gate: state.gate, tenant: state.tenant,
-        shiftStart: state.shiftStart, shiftLogId: state.shiftLogId, activeTab: state.activeTab,
+      partialize: (s) => ({
+        onShift: s.onShift, guard: s.guard, gate: s.gate, tenant: s.tenant,
+        shiftStart: s.shiftStart, shiftLogId: s.shiftLogId, activeTab: s.activeTab,
       }),
     }
   )

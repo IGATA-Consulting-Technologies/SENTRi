@@ -35,7 +35,9 @@ export default function AdminApp() {
       </header>
       <nav className="admin-nav">
         {['overview','tenants','officers','incidents','settings'].map(tab => (
-          <button key={tab} className={`nav-tab ${activeTab===tab?'active':''`} onClick={() => setActiveTab(tab)}>{tab.charAt(0).toUpperCase()+tab.slice(1)}</button>
+          <button key={tab} className={'nav-tab ' + (activeTab === tab ? 'active' : '')} onClick={() => setActiveTab(tab)}>
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
         ))}
       </nav>
       <main className="admin-main">
@@ -56,17 +58,20 @@ function OverviewTab() {
       supabase.from('tenants').select('id,name,is_active,sector'),
       supabase.from('movements').select('id,exit_time'),
       supabase.from('incidents').select('id,severity,status'),
-      supabase.from('officers').select('id',{count:'exact'}),
+      supabase.from('officers').select('id', { count: 'exact' }),
       supabase.from('gates').select('id,is_active'),
-    ]).then(([t,m,i,o,g]) => setStats({
-      totalTenants:(t.data||[]).length, activeTenants:(t.data||[]).filter(x=>x.is_active).length,
-      totalMovements:(m.data||[]).length, insideNow:(m.data||[]).filter(x=>!x.exit_time).length,
-      openIncidents:(i.data||[]).filter(x=>x.status==='open').length,
-      criticalIncidents:(i.data||[]).filter(x=>x.severity==='critical'&&x.status==='open').length,
-      totalOfficers:o.count||0, activeGates:(g.data||[]).filter(x=>x.is_active).length,
-      tenants:t.data||[]
+    ]).then(([t, m, i, o, g]) => setStats({
+      totalTenants: (t.data||[]).length,
+      activeTenants: (t.data||[]).filter(x => x.is_active).length,
+      totalMovements: (m.data||[]).length,
+      insideNow: (m.data||[]).filter(x => !x.exit_time).length,
+      openIncidents: (i.data||[]).filter(x => x.status === 'open').length,
+      criticalIncidents: (i.data||[]).filter(x => x.severity === 'critical' && x.status === 'open').length,
+      totalOfficers: o.count || 0,
+      activeGates: (g.data||[]).filter(x => x.is_active).length,
+      tenants: t.data || []
     }))
-  },[])
+  }, [])
   if (!stats) return <div className="loading-state">Loading...</div>
   return (
     <div className="overview-tab">
@@ -74,16 +79,21 @@ function OverviewTab() {
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-label">Active Tenants</div><div className="stat-value">{stats.activeTenants}/{stats.totalTenants}</div></div>
         <div className="stat-card"><div className="stat-label">Total Movements</div><div className="stat-value">{stats.totalMovements}</div></div>
-        <div className="stat-card"><div className="stat-label">Currently Inside</div><div className="stat-value green">{stats.insideNow}</div></div>
+        <div className="stat-card"><div className="stat-label">Currently Inside</div><div className="stat-value">{stats.insideNow}</div></div>
         <div className="stat-card"><div className="stat-label">Active Gates</div><div className="stat-value">{stats.activeGates}</div></div>
-        <div className="stat-card"><div className="stat-label">Total Officers</div><div className="stat-value">{stats.totalOfficers}</div></div>
-        <div className="stat-card"><div className="stat-label">Open Incidents</div><div className="stat-value stat-amber">{stats.openIncidents}</div></div>
-        {stats.criticalIncidents>0&&<div className="stat-card"><div className="stat-label">CRITICAL Open</div><div className="stat-value stat-red">{stats.criticalIncidents}</div></div>}
+        <div className="stat-card"><div className="stat-label">Officers</div><div className="stat-value">{stats.totalOfficers}</div></div>
+        <div className="stat-card"><div className="stat-label">Open Incidents</div><div className="stat-value">{stats.openIncidents}</div></div>
+        {stats.criticalIncidents > 0 && <div className="stat-card"><div className="stat-label">CRITICAL</div><div className="stat-value">{stats.criticalIncidents}</div></div>}
       </div>
       <h3>All Tenants</h3>
       <div className="report-table">
         <div className="table-header"><span>Installation</span><span>Sector</span><span>Status</span></div>
-        {stats.tenants.map(t=><div className="table-row" key={t.id}><span>{t.name}</span><span>{t.sector}</span><span className={t.is_active?'text-green':'text-red'}>{t.is_active?'Active':'Inactive'}</span></div>)}
+        {stats.tenants.map(t => (
+          <div className="table-row" key={t.id}>
+            <span>{t.name}</span><span>{t.sector}</span>
+            <span className={t.is_active ? 'text-green' : 'text-red'}>{t.is_active ? 'Active' : 'Inactive'}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -94,55 +104,92 @@ function TenantsTab() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [selected, setSelected] = useState(null)
-  const [form, setForm] = useState({name:'',slug:'',sector:'',branch:'',city:'',state:'',country:'Nigeria',contact_name:'',contact_email:'',contact_phone:'',report_emails:'',report_frequency:'weekly'})
+  const emptyForm = {name:'',slug:'',sector:'',branch:'',city:'',state:'',country:'Nigeria',contact_name:'',contact_email:'',contact_phone:'',report_emails:'',report_frequency:'weekly'}
+  const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  useEffect(()=>{fetch_()},[])
-  async function fetch_(){setLoading(true);const{data}=await supabase.from('tenants').select('*').order('created_at');setTenants(data||[]);setLoading(false)}
-  function slugify(n){return n.toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}
-  async function save(){
-    setError('')
-    if(!form.name.trim()){setError('Name required');return}
-    const slug=form.slug||slugify(form.name)
-    setSaving(true)
-    const payload={...form,slug,report_emails:form.report_emails?form.report_emails.split(',').map(e=>e.trim()).filter(Boolean):[],branch:form.branch||null}
-    const{error:err}=selected?await supabase.from('tenants').update(payload).eq('id',selected.id):await supabase.from('tenants').insert(payload)
-    setSaving(false)
-    if(err){setError(err.message);return}
-    setShowForm(false);setSelected(null);setForm({name:'',slug:'',sector:'',branch:'',city:'',state:'',country:'Nigeria',contact_name:'',contact_email:'',contact_phone:'',report_emails:'',report_frequency:'weekly'});fetch_()
+
+  useEffect(() => { fetchTenants() }, [])
+
+  async function fetchTenants() {
+    setLoading(true)
+    const { data } = await supabase.from('tenants').select('*').order('created_at')
+    setTenants(data || [])
+    setLoading(false)
   }
-  async function toggle(t){await supabase.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);fetch_()}
-  function edit(t){setSelected(t);setForm({name:t.name,slug:t.slug,sector:t.sector||'',branch:t.branch||'',city:t.city||'',state:t.state||'',country:t.country||'Nigeria',contact_name:t.contact_name||'',contact_email:t.contact_email||'',contact_phone:t.contact_phone||'',report_emails:(t.report_emails||[]).join(', '),report_frequency:t.report_frequency||'weekly'});setShowForm(true)}
+
+  function slugify(n) { return n.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }
+
+  async function save() {
+    setError('')
+    if (!form.name.trim()) { setError('Name required'); return }
+    const slug = form.slug || slugify(form.name)
+    setSaving(true)
+    const payload = { ...form, slug, report_emails: form.report_emails ? form.report_emails.split(',').map(e => e.trim()).filter(Boolean) : [], branch: form.branch || null }
+    const { error: err } = selected
+      ? await supabase.from('tenants').update(payload).eq('id', selected.id)
+      : await supabase.from('tenants').insert(payload)
+    setSaving(false)
+    if (err) { setError(err.message); return }
+    setShowForm(false); setSelected(null); setForm(emptyForm); fetchTenants()
+  }
+
+  async function toggle(t) { await supabase.from('tenants').update({ is_active: !t.is_active }).eq('id', t.id); fetchTenants() }
+
+  function edit(t) {
+    setSelected(t)
+    setForm({ name: t.name, slug: t.slug, sector: t.sector||'', branch: t.branch||'', city: t.city||'', state: t.state||'', country: t.country||'Nigeria', contact_name: t.contact_name||'', contact_email: t.contact_email||'', contact_phone: t.contact_phone||'', report_emails: (t.report_emails||[]).join(', '), report_frequency: t.report_frequency||'weekly' })
+    setShowForm(true)
+  }
+
   return (
     <div className="tenants-tab">
-      <div className="tab-header"><h2>Tenants ({tenants.length})</h2><button className="btn-primary" onClick={()=>{setShowForm(!showForm);setSelected(null);setError('')}}>{showForm?'Cancel':'+ Onboard Client'}</button></div>
-      {showForm&&<div className="card form-card">
-        <h3>{selected?'Edit':'Onboard New Client'}</h3>
-        {error&&<div className="error-msg">{error}</div>}
-        <div className="form-grid">
-          <div className="form-group"><label>Name *</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></div>
-          <div className="form-group"><label>Slug</label><input value={form.slug} onChange={e=>setForm(f=>({...f,slug:e.target.value}))} placeholder="auto-generated"/></div>
-          <div className="form-group"><label>Sector</label><select value={form.sector} onChange={e=>setForm(f=>({...f,sector:e.target.value}))}><option value="">Select</option>{SECTORS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
-          <div className="form-group"><label>Branch</label><select value={form.branch} onChange={e=>setForm(f=>({...f,branch:e.target.value}))}><option value="">N/A</option>{BRANCHES.map(b=><option key={b} value={b}>{b}</option>)}</select></div>
-          <div className="form-group"><label>City</label><input value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}/></div>
-          <div className="form-group"><label>State</label><input value={form.state} onChange={e=>setForm(f=>({...f,state:e.target.value}))}/></div>
-          <div className="form-group"><label>Contact Name</label><input value={form.contact_name} onChange={e=>setForm(f=>({...f,contact_name:e.target.value}))}/></div>
-          <div className="form-group"><label>Contact Email</label><input value={form.contact_email} onChange={e=>setForm(f=>({...f,contact_email:e.target.value}))}/></div>
-          <div className="form-group"><label>Contact Phone</label><input value={form.contact_phone} onChange={e=>setForm(f=>({...f,contact_phone:e.target.value}))}/></div>
-          <div className="form-group"><label>Report Emails</label><input value={form.report_emails} onChange={e=>setForm(f=>({...f,report_emails:e.target.value}))} placeholder="comma-separated"/></div>
-          <div className="form-group"><label>Report Frequency</label><select value={form.report_frequency} onChange={e=>setForm(f=>({...f,report_frequency:e.target.value}))}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="both">Both</option></select></div>
-        </div>
-        <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':selected?'Update':'Create'}</button>
-      </div>}
-      {loading?<div className="loading-state">Loading...</div>:<div className="tenants-list">{tenants.map(t=>(
-        <div key={t.id} className={`tenant-card ${!t.is_active?'inactive':''`}>
-          <div className="tenant-info">
-            <div className="tenant-name-row"><span className="tenant-name">{t.name}</span><span className={`badge ${t.is_active?'badge-green':'badge-grey'`}>{t.is_active?'Active':'Inactive'}</span>{t.sector&&<span className="badge badge-blue">{t.sector}</span>}</div>
-            <div className="tenant-meta"><span>/{t.slug}</span>{t.city&&<span> / {t.city}, {t.state}</span>}</div>
+      <div className="tab-header">
+        <h2>Tenants ({tenants.length})</h2>
+        <button className="btn-primary" onClick={() => { setShowForm(!showForm); setSelected(null); setError('') }}>
+          {showForm ? 'Cancel' : '+ Onboard Client'}
+        </button>
+      </div>
+      {showForm && (
+        <div className="card form-card">
+          <h3>{selected ? 'Edit Tenant' : 'Onboard New Client'}</h3>
+          {error && <div className="error-msg">{error}</div>}
+          <div className="form-grid">
+            <div className="form-group"><label>Name *</label><input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+            <div className="form-group"><label>Slug</label><input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} placeholder="auto-generated" /></div>
+            <div className="form-group"><label>Sector</label><select value={form.sector} onChange={e => setForm(f => ({ ...f, sector: e.target.value }))}><option value="">Select</option>{SECTORS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+            <div className="form-group"><label>Branch</label><select value={form.branch} onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}><option value="">N/A</option>{BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+            <div className="form-group"><label>City</label><input value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
+            <div className="form-group"><label>State</label><input value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} /></div>
+            <div className="form-group"><label>Contact Name</label><input value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))} /></div>
+            <div className="form-group"><label>Contact Email</label><input value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} /></div>
+            <div className="form-group"><label>Contact Phone</label><input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} /></div>
+            <div className="form-group"><label>Report Emails</label><input value={form.report_emails} onChange={e => setForm(f => ({ ...f, report_emails: e.target.value }))} placeholder="comma-separated" /></div>
+            <div className="form-group"><label>Report Frequency</label><select value={form.report_frequency} onChange={e => setForm(f => ({ ...f, report_frequency: e.target.value }))}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="both">Both</option></select></div>
           </div>
-          <div className="tenant-actions"><button className="btn-ghost" onClick={()=>edit(t)}>Edit</button><button className="btn-ghost" onClick={()=>toggle(t)}>{t.is_active?'Deactivate':'Activate'}</button></div>
+          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : selected ? 'Update' : 'Create'}</button>
         </div>
-      ))}</div>}
+      )}
+      {loading ? <div className="loading-state">Loading...</div> : (
+        <div className="tenants-list">
+          {tenants.map(t => (
+            <div key={t.id} className={'tenant-card' + (!t.is_active ? ' inactive' : '')}>
+              <div className="tenant-info">
+                <div className="tenant-name-row">
+                  <span className="tenant-name">{t.name}</span>
+                  <span className={'badge ' + (t.is_active ? 'badge-green' : 'badge-grey')}>{t.is_active ? 'Active' : 'Inactive'}</span>
+                  {t.sector && <span className="badge badge-blue">{t.sector}</span>}
+                </div>
+                <div className="tenant-meta"><span>/{t.slug}</span>{t.city && <span> / {t.city}, {t.state}</span>}</div>
+              </div>
+              <div className="tenant-actions">
+                <button className="btn-ghost" onClick={() => edit(t)}>Edit</button>
+                <button className="btn-ghost" onClick={() => toggle(t)}>{t.is_active ? 'Deactivate' : 'Activate'}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -152,25 +199,42 @@ function OfficersTab() {
   const [tenants, setTenants] = useState([])
   const [loading, setLoading] = useState(true)
   const [filterTenant, setFilterTenant] = useState('all')
-  useEffect(()=>{
+
+  useEffect(() => {
     Promise.all([
-      supabase.from('officers').select('*, tenants(name)').order('created_at',{ascending:false}),
-      supabase.from('tenants').select('id,name').eq('is_active',true)
-    ]).then(([o,t])=>{setOfficers(o.data||[]);setTenants(t.data||[]);setLoading(false)})
-  },[])
-  async function toggle(o){await supabase.from('officers').update({is_active:!o.is_active}).eq('id',o.id);const{data}=await supabase.from('officers').select('*, tenants(name)').order('created_at',{ascending:false});setOfficers(data||[])}
-  const filtered=filterTenant==='all'?officers:officers.filter(o=>o.tenant_id===filterTenant)
+      supabase.from('officers').select('*, tenants(name)').order('created_at', { ascending: false }),
+      supabase.from('tenants').select('id,name').eq('is_active', true)
+    ]).then(([o, t]) => { setOfficers(o.data||[]); setTenants(t.data||[]); setLoading(false) })
+  }, [])
+
+  async function toggle(o) {
+    await supabase.from('officers').update({ is_active: !o.is_active }).eq('id', o.id)
+    const { data } = await supabase.from('officers').select('*, tenants(name)').order('created_at', { ascending: false })
+    setOfficers(data || [])
+  }
+
+  const filtered = filterTenant === 'all' ? officers : officers.filter(o => o.tenant_id === filterTenant)
+
   return (
     <div className="officers-tab">
-      <div className="tab-header"><h2>Officers ({filtered.length})</h2><select value={filterTenant} onChange={e=>setFilterTenant(e.target.value)}><option value="all">All Tenants</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-      {loading?<div className="loading-state">Loading...</div>:(
+      <div className="tab-header">
+        <h2>Officers ({filtered.length})</h2>
+        <select value={filterTenant} onChange={e => setFilterTenant(e.target.value)}>
+          <option value="all">All Tenants</option>
+          {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </div>
+      {loading ? <div className="loading-state">Loading...</div> : (
         <div className="report-table">
           <div className="table-header"><span>Name</span><span>Tenant</span><span>Role</span><span>Service No</span><span>Status</span><span>Actions</span></div>
-          {filtered.map(o=>(
+          {filtered.map(o => (
             <div className="table-row" key={o.id}>
-              <span>{o.rank} {o.name}</span><span>{o.tenants?.name}</span><span>{o.role}</span><span>{o.service_number}</span>
-              <span className={o.is_active?'text-green':'text-red'}>{o.is_active?'Active':'Inactive'}</span>
-              <span><button className="btn-xs" onClick={()=>toggle(o)}>{o.is_active?'Deactivate':'Activate'}</button></span>
+              <span>{o.rank} {o.name}</span>
+              <span>{o.tenants?.name}</span>
+              <span>{o.role}</span>
+              <span>{o.service_number}</span>
+              <span className={o.is_active ? 'text-green' : 'text-red'}>{o.is_active ? 'Active' : 'Inactive'}</span>
+              <span><button className="btn-xs" onClick={() => toggle(o)}>{o.is_active ? 'Deactivate' : 'Activate'}</button></span>
             </div>
           ))}
         </div>
@@ -183,26 +247,46 @@ function AdminIncidentsTab() {
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('open')
-  useEffect(()=>{
+
+  useEffect(() => {
     setLoading(true)
-    let q=supabase.from('incidents').select('*, tenants(name), gates(name), officers!incidents_officer_id_fkey(name,rank)').order('created_at',{ascending:false})
-    if(filter!=='all') q=q.eq('status',filter)
-    q.then(({data})=>{setIncidents(data||[]);setLoading(false)})
-  },[filter])
+    let q = supabase.from('incidents')
+      .select('*, tenants(name), gates(name), officers!incidents_officer_id_fkey(name,rank)')
+      .order('created_at', { ascending: false })
+    if (filter !== 'all') q = q.eq('status', filter)
+    q.then(({ data }) => { setIncidents(data||[]); setLoading(false) })
+  }, [filter])
+
   return (
     <div className="incidents-tab">
-      <div className="tab-header"><h2>All Incidents</h2></div>
-      <div className="filter-row">{['open','acknowledged','resolved','all'].map(f=><button key={f} className={`filter-btn ${filter===f?'active':''`} onClick={()=>setFilter(f)}>{f.charAt(0).toUpperCase()+f.slice(1)}</button>)}</div>
-      {loading?<div className="loading-state">Loading...</div>:(
-        <div className="incidents-list">{incidents.map(inc=>(
-          <div key={inc.id} className={`incident-card severity-${inc.severity}`}>
-            <div className="incident-header">
-              <div className="incident-title-row"><span className="incident-type">{inc.type.replace(/_/g,' ')}</span><span className={`badge ${inc.severity==='critical'?'badge-red':inc.severity==='serious'?'badge-amber':'badge-blue'`}>{inc.severity}</span><span className={`badge ${inc.status==='open'?'badge-red':inc.status==='acknowledged'?'badge-amber':'badge-green'`}>{inc.status}</span></div>
-              <div className="incident-meta"><span>{inc.tenants?.name}</span>{inc.gates?.name&&<span> / {inc.gates.name}</span>}<span> / {new Date(inc.created_at).toLocaleString()}</span></div>
+      <div className="tab-header"><h2>All Incidents — Platform Wide</h2></div>
+      <div className="filter-row">
+        {['open','acknowledged','resolved','all'].map(f => (
+          <button key={f} className={'filter-btn ' + (filter === f ? 'active' : '')} onClick={() => setFilter(f)}>
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+      {loading ? <div className="loading-state">Loading...</div> : (
+        <div className="incidents-list">
+          {incidents.map(inc => (
+            <div key={inc.id} className={'incident-card severity-' + inc.severity}>
+              <div className="incident-header">
+                <div className="incident-title-row">
+                  <span className="incident-type">{inc.type.replace(/_/g, ' ')}</span>
+                  <span className={'badge ' + (inc.severity === 'critical' ? 'badge-red' : inc.severity === 'serious' ? 'badge-amber' : 'badge-blue')}>{inc.severity}</span>
+                  <span className={'badge ' + (inc.status === 'open' ? 'badge-red' : inc.status === 'acknowledged' ? 'badge-amber' : 'badge-green')}>{inc.status}</span>
+                </div>
+                <div className="incident-meta">
+                  <span>{inc.tenants?.name}</span>
+                  {inc.gates?.name && <span> / {inc.gates.name}</span>}
+                  <span> / {new Date(inc.created_at).toLocaleString()}</span>
+                </div>
+              </div>
+              <p className="incident-description">{inc.description}</p>
             </div>
-            <p className="incident-description">{inc.description}</p>
-          </div>
-        ))}</div>
+          ))}
+        </div>
       )}
     </div>
   )

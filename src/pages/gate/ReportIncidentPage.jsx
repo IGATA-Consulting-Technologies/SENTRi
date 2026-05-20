@@ -13,6 +13,7 @@ const INCIDENT_TYPES = [
   { value: 'contraband_detected', label: 'Contraband Detected' },
   { value: 'other', label: 'Other' },
 ]
+
 const SEVERITIES = [
   { value: 'routine', label: 'Routine', desc: 'Minor, for record only', color: '#1a56db' },
   { value: 'serious', label: 'Serious', desc: 'Requires attention', color: '#92530a' },
@@ -32,7 +33,8 @@ export default function ReportIncidentPage({ onBack }) {
     if (!form.severity) { setError('Select severity level'); return }
     if (!form.description.trim()) { setError('Description is required'); return }
     setSubmitting(true)
-    const { data: officerData } = await supabase.from('officers').select('id').eq('tenant_id', tenant.id).eq('service_number', guard.serviceNumber).single()
+    const { data: officerData } = await supabase
+      .from('officers').select('id').eq('tenant_id', tenant.id).eq('service_number', guard.serviceNumber).single()
     const { error: err } = await supabase.from('incidents').insert({
       tenant_id: tenant.id, gate_id: gate.id, officer_id: officerData?.id || null,
       type: form.type, severity: form.severity, description: form.description.trim(),
@@ -46,7 +48,7 @@ export default function ReportIncidentPage({ onBack }) {
   if (submitted) return (
     <div className="incident-submitted">
       <h2>Incident Reported</h2>
-      <p>Your report has been submitted and the duty officer has been notified.</p>
+      <p>Report submitted. Duty officer has been notified.</p>
       {form.severity === 'critical' && <div className="critical-notice">CRITICAL — Command alerted immediately.</div>}
       <button className="btn-primary" onClick={onBack}>Back to Gate</button>
     </div>
@@ -64,7 +66,13 @@ export default function ReportIncidentPage({ onBack }) {
         <label>Incident Type *</label>
         <div className="type-grid">
           {INCIDENT_TYPES.map(t => (
-            <button key={t.value} className={`type-btn ${form.type===t.value?'selected':''`} onClick={() => setForm(f => ({ ...f, type: t.value }))}>{t.label}</button>
+            <button
+              key={t.value}
+              className={'type-btn' + (form.type === t.value ? ' selected' : '')}
+              onClick={() => setForm(f => ({ ...f, type: t.value }))}
+            >
+              {t.label}
+            </button>
           ))}
         </div>
       </div>
@@ -72,10 +80,13 @@ export default function ReportIncidentPage({ onBack }) {
         <label>Severity *</label>
         <div className="severity-grid">
           {SEVERITIES.map(s => (
-            <button key={s.value} className={`severity-btn ${form.severity===s.value?'selected':''`}
-              style={form.severity===s.value?{borderColor:s.color,background:s.color+'15'}:{}}
-              onClick={() => setForm(f => ({ ...f, severity: s.value }))}>
-              <span style={{color:s.color}}>{s.label}</span>
+            <button
+              key={s.value}
+              className={'severity-btn' + (form.severity === s.value ? ' selected' : '')}
+              style={form.severity === s.value ? { borderColor: s.color, background: s.color + '15' } : {}}
+              onClick={() => setForm(f => ({ ...f, severity: s.value }))}
+            >
+              <span style={{ color: s.color }}>{s.label}</span>
               <span className="severity-desc">{s.desc}</span>
             </button>
           ))}
@@ -83,14 +94,27 @@ export default function ReportIncidentPage({ onBack }) {
       </div>
       <div className="form-section">
         <label>Description *</label>
-        <textarea placeholder="Describe what happened..." rows={4} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+        <textarea
+          placeholder="Describe what happened in detail..."
+          rows={4}
+          value={form.description}
+          onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+        />
       </div>
       <div className="form-section">
         <label>Specific Location (optional)</label>
-        <input placeholder="e.g. Gate entrance, North fence" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+        <input
+          placeholder="e.g. Gate entrance, North fence"
+          value={form.location}
+          onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+        />
       </div>
-      <button className={`btn-submit-incident ${form.severity==='critical'?'critical':''`} onClick={submitIncident} disabled={submitting}>
-        {submitting ? 'Submitting...' : form.severity==='critical' ? 'Submit CRITICAL Incident' : 'Submit Incident Report'}
+      <button
+        className={'btn-submit-incident' + (form.severity === 'critical' ? ' critical' : '')}
+        onClick={submitIncident}
+        disabled={submitting}
+      >
+        {submitting ? 'Submitting...' : form.severity === 'critical' ? 'Submit CRITICAL Incident' : 'Submit Incident Report'}
       </button>
     </div>
   )

@@ -27,22 +27,22 @@ export default function CommandApp() {
 
   useEffect(() => {
     fetchCounts()
-    const channel = supabase.channel('command-badges')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'flag_alerts', filter: `tenant_id=eq.${tenant.id}` }, () => fetchCounts())
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'incidents', filter: `tenant_id=eq.${tenant.id}` }, () => fetchCounts())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'flag_alerts', filter: `tenant_id=eq.${tenant.id}` }, () => fetchCounts())
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'incidents', filter: `tenant_id=eq.${tenant.id}` }, () => fetchCounts())
+    const ch = supabase.channel('command-badges')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'flag_alerts', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'incidents', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'flag_alerts', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'incidents', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
       .subscribe()
-    return () => supabase.removeChannel(channel)
+    return () => supabase.removeChannel(ch)
   }, [])
 
   async function fetchCounts() {
-    const [alertsRes, incidentsRes] = await Promise.all([
+    const [a, i] = await Promise.all([
       supabase.from('flag_alerts').select('id', { count: 'exact' }).eq('tenant_id', tenant.id).eq('acknowledged', false),
       supabase.from('incidents').select('id', { count: 'exact' }).eq('tenant_id', tenant.id).eq('status', 'open')
     ])
-    setAlertCount(alertsRes.count || 0)
-    setIncidentCount(incidentsRes.count || 0)
+    setAlertCount(a.count || 0)
+    setIncidentCount(i.count || 0)
   }
 
   function renderTab() {
@@ -63,7 +63,7 @@ export default function CommandApp() {
       <header className="command-header">
         <div className="header-left">
           <div className="sentri-logo">
-            <div className="logo-icon">SENTRi</div>
+            <div className="logo-icon">S</div>
             <div>
               <div className="installation-name">{tenant?.name}</div>
               <div className="officer-info">{officer?.rank} {officer?.name} &middot; {officer?.role === 'command' ? 'Intelligence' : officer?.role}</div>
@@ -77,7 +77,11 @@ export default function CommandApp() {
       </header>
       <nav className="command-nav">
         {TABS.map(tab => (
-          <button key={tab.key} className={`nav-tab ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>
+          <button
+            key={tab.key}
+            className={'nav-tab' + (activeTab === tab.key ? ' active' : '')}
+            onClick={() => setActiveTab(tab.key)}
+          >
             {tab.label}
             {tab.key === 'alerts' && alertCount > 0 && <span className="nav-badge">{alertCount}</span>}
             {tab.key === 'incidents' && incidentCount > 0 && <span className="nav-badge nav-badge-red">{incidentCount}</span>}
