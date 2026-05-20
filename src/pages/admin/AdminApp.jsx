@@ -1,65 +1,219 @@
-// AdminApp.jsx — IGATA Superadmin (placeholder for Phase 4)
-import { useAuthStore } from '../../store'
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
+const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET
+const SECTORS = ['military', 'oil_gas', 'industrial', 'corporate', 'government', 'other']
+const BRANCHES = ['army', 'navy', 'airforce', 'police', 'dss']
+
 export default function AdminApp() {
-  const { officer, logout } = useAuthStore()
-  const [tenants, setTenants] = useState([])
-  const [stats, setStats] = useState({})
-  const [loading, setLoading] = useState(true)
+  const [authed, setAuthed] = useState(false)
+  const [secret, setSecret] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [activeTab, setActiveTab] = useState('overview')
 
-  useEffect(() => { load() }, [])
-
-  async function load() {
-    setLoading(true)
-    const { data: allTenants } = await supabase.from('tenants').select('*').order('created_at', { ascending: false })
-    setTenants(allTenants || [])
-    setStats({ total: (allTenants || []).length, active: (allTenants || []).filter(t => t.is_active).length })
-    setLoading(false)
+  function login() {
+    if (secret === ADMIN_SECRET) { setAuthed(true) } else { setAuthError('Invalid superadmin key') }
   }
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-0)' }}>
-      <div style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--border)', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '32px', height: '32px', background: 'var(--accent)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '14px', fontWeight: '700' }}>SENTRi Admin</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>IGATA Technologies · Platform Control</div>
-          </div>
-        </div>
-        <button className="btn btn-ghost btn-sm" onClick={logout}>Sign out</button>
+  if (!authed) return (
+    <div className="admin-login">
+      <div className="admin-login-card">
+        <h1>SENTRi</h1>
+        <p>IGATA Superadmin</p>
+        {authError && <div className="error-msg">{authError}</div>}
+        <input type="password" placeholder="Superadmin key" value={secret} onChange={e => setSecret(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()} />
+        <button className="btn-primary" onClick={login}>Access Superadmin</button>
       </div>
+    </div>
+  )
 
-      <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '700', marginBottom: '6px' }}>Platform Overview</h2>
-        <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>All installations on SENTRi</p>
+  return (
+    <div className="admin-app">
+      <header className="admin-header">
+        <div><div className="admin-title">SENTRi Superadmin</div><div className="admin-sub">IGATA Technologies</div></div>
+        <button className="btn-signout" onClick={() => setAuthed(false)}>Sign out</button>
+      </header>
+      <nav className="admin-nav">
+        {['overview','tenants','officers','incidents','settings'].map(tab => (
+          <button key={tab} className={`nav-tab ${activeTab===tab?'active':''`} onClick={() => setActiveTab(tab)}>{tab.charAt(0).toUpperCase()+tab.slice(1)}</button>
+        ))}
+      </nav>
+      <main className="admin-main">
+        {activeTab === 'overview' && <OverviewTab />}
+        {activeTab === 'tenants' && <TenantsTab />}
+        {activeTab === 'officers' && <OfficersTab />}
+        {activeTab === 'incidents' && <AdminIncidentsTab />}
+        {activeTab === 'settings' && <SettingsTab />}
+      </main>
+    </div>
+  )
+}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
-          {[{ label: 'Total tenants', value: stats.total }, { label: 'Active', value: stats.active }, { label: 'Inactive', value: (stats.total || 0) - (stats.active || 0) }].map(s => (
-            <div key={s.label} className="card" style={{ padding: '16px' }}>
-              <div style={{ fontSize: '10px', color: 'var(--text-2)', marginBottom: '6px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
-              <div style={{ fontSize: '28px', fontWeight: '700', fontFamily: 'var(--font-display)', color: 'var(--text-0)' }}>{s.value ?? '—'}</div>
+function OverviewTab() {
+  const [stats, setStats] = useState(null)
+  useEffect(() => {
+    Promise.all([
+      supabase.from('tenants').select('id,name,is_active,sector'),
+      supabase.from('movements').select('id,exit_time'),
+      supabase.from('incidents').select('id,severity,status'),
+      supabase.from('officers').select('id',{count:'exact'}),
+      supabase.from('gates').select('id,is_active'),
+    ]).then(([t,m,i,o,g]) => setStats({
+      totalTenants:(t.data||[]).length, activeTenants:(t.data||[]).filter(x=>x.is_active).length,
+      totalMovements:(m.data||[]).length, insideNow:(m.data||[]).filter(x=>!x.exit_time).length,
+      openIncidents:(i.data||[]).filter(x=>x.status==='open').length,
+      criticalIncidents:(i.data||[]).filter(x=>x.severity==='critical'&&x.status==='open').length,
+      totalOfficers:o.count||0, activeGates:(g.data||[]).filter(x=>x.is_active).length,
+      tenants:t.data||[]
+    }))
+  },[])
+  if (!stats) return <div className="loading-state">Loading...</div>
+  return (
+    <div className="overview-tab">
+      <h2>Platform Overview</h2>
+      <div className="stats-grid">
+        <div className="stat-card"><div className="stat-label">Active Tenants</div><div className="stat-value">{stats.activeTenants}/{stats.totalTenants}</div></div>
+        <div className="stat-card"><div className="stat-label">Total Movements</div><div className="stat-value">{stats.totalMovements}</div></div>
+        <div className="stat-card"><div className="stat-label">Currently Inside</div><div className="stat-value green">{stats.insideNow}</div></div>
+        <div className="stat-card"><div className="stat-label">Active Gates</div><div className="stat-value">{stats.activeGates}</div></div>
+        <div className="stat-card"><div className="stat-label">Total Officers</div><div className="stat-value">{stats.totalOfficers}</div></div>
+        <div className="stat-card"><div className="stat-label">Open Incidents</div><div className="stat-value stat-amber">{stats.openIncidents}</div></div>
+        {stats.criticalIncidents>0&&<div className="stat-card"><div className="stat-label">CRITICAL Open</div><div className="stat-value stat-red">{stats.criticalIncidents}</div></div>}
+      </div>
+      <h3>All Tenants</h3>
+      <div className="report-table">
+        <div className="table-header"><span>Installation</span><span>Sector</span><span>Status</span></div>
+        {stats.tenants.map(t=><div className="table-row" key={t.id}><span>{t.name}</span><span>{t.sector}</span><span className={t.is_active?'text-green':'text-red'}>{t.is_active?'Active':'Inactive'}</span></div>)}
+      </div>
+    </div>
+  )
+}
+
+function TenantsTab() {
+  const [tenants, setTenants] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [selected, setSelected] = useState(null)
+  const [form, setForm] = useState({name:'',slug:'',sector:'',branch:'',city:'',state:'',country:'Nigeria',contact_name:'',contact_email:'',contact_phone:'',report_emails:'',report_frequency:'weekly'})
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  useEffect(()=>{fetch_()},[])
+  async function fetch_(){setLoading(true);const{data}=await supabase.from('tenants').select('*').order('created_at');setTenants(data||[]);setLoading(false)}
+  function slugify(n){return n.toLowerCase().trim().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'')}
+  async function save(){
+    setError('')
+    if(!form.name.trim()){setError('Name required');return}
+    const slug=form.slug||slugify(form.name)
+    setSaving(true)
+    const payload={...form,slug,report_emails:form.report_emails?form.report_emails.split(',').map(e=>e.trim()).filter(Boolean):[],branch:form.branch||null}
+    const{error:err}=selected?await supabase.from('tenants').update(payload).eq('id',selected.id):await supabase.from('tenants').insert(payload)
+    setSaving(false)
+    if(err){setError(err.message);return}
+    setShowForm(false);setSelected(null);setForm({name:'',slug:'',sector:'',branch:'',city:'',state:'',country:'Nigeria',contact_name:'',contact_email:'',contact_phone:'',report_emails:'',report_frequency:'weekly'});fetch_()
+  }
+  async function toggle(t){await supabase.from('tenants').update({is_active:!t.is_active}).eq('id',t.id);fetch_()}
+  function edit(t){setSelected(t);setForm({name:t.name,slug:t.slug,sector:t.sector||'',branch:t.branch||'',city:t.city||'',state:t.state||'',country:t.country||'Nigeria',contact_name:t.contact_name||'',contact_email:t.contact_email||'',contact_phone:t.contact_phone||'',report_emails:(t.report_emails||[]).join(', '),report_frequency:t.report_frequency||'weekly'});setShowForm(true)}
+  return (
+    <div className="tenants-tab">
+      <div className="tab-header"><h2>Tenants ({tenants.length})</h2><button className="btn-primary" onClick={()=>{setShowForm(!showForm);setSelected(null);setError('')}}>{showForm?'Cancel':'+ Onboard Client'}</button></div>
+      {showForm&&<div className="card form-card">
+        <h3>{selected?'Edit':'Onboard New Client'}</h3>
+        {error&&<div className="error-msg">{error}</div>}
+        <div className="form-grid">
+          <div className="form-group"><label>Name *</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></div>
+          <div className="form-group"><label>Slug</label><input value={form.slug} onChange={e=>setForm(f=>({...f,slug:e.target.value}))} placeholder="auto-generated"/></div>
+          <div className="form-group"><label>Sector</label><select value={form.sector} onChange={e=>setForm(f=>({...f,sector:e.target.value}))}><option value="">Select</option>{SECTORS.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+          <div className="form-group"><label>Branch</label><select value={form.branch} onChange={e=>setForm(f=>({...f,branch:e.target.value}))}><option value="">N/A</option>{BRANCHES.map(b=><option key={b} value={b}>{b}</option>)}</select></div>
+          <div className="form-group"><label>City</label><input value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}/></div>
+          <div className="form-group"><label>State</label><input value={form.state} onChange={e=>setForm(f=>({...f,state:e.target.value}))}/></div>
+          <div className="form-group"><label>Contact Name</label><input value={form.contact_name} onChange={e=>setForm(f=>({...f,contact_name:e.target.value}))}/></div>
+          <div className="form-group"><label>Contact Email</label><input value={form.contact_email} onChange={e=>setForm(f=>({...f,contact_email:e.target.value}))}/></div>
+          <div className="form-group"><label>Contact Phone</label><input value={form.contact_phone} onChange={e=>setForm(f=>({...f,contact_phone:e.target.value}))}/></div>
+          <div className="form-group"><label>Report Emails</label><input value={form.report_emails} onChange={e=>setForm(f=>({...f,report_emails:e.target.value}))} placeholder="comma-separated"/></div>
+          <div className="form-group"><label>Report Frequency</label><select value={form.report_frequency} onChange={e=>setForm(f=>({...f,report_frequency:e.target.value}))}><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="both">Both</option></select></div>
+        </div>
+        <button className="btn-primary" onClick={save} disabled={saving}>{saving?'Saving...':selected?'Update':'Create'}</button>
+      </div>}
+      {loading?<div className="loading-state">Loading...</div>:<div className="tenants-list">{tenants.map(t=>(
+        <div key={t.id} className={`tenant-card ${!t.is_active?'inactive':''`}>
+          <div className="tenant-info">
+            <div className="tenant-name-row"><span className="tenant-name">{t.name}</span><span className={`badge ${t.is_active?'badge-green':'badge-grey'`}>{t.is_active?'Active':'Inactive'}</span>{t.sector&&<span className="badge badge-blue">{t.sector}</span>}</div>
+            <div className="tenant-meta"><span>/{t.slug}</span>{t.city&&<span> / {t.city}, {t.state}</span>}</div>
+          </div>
+          <div className="tenant-actions"><button className="btn-ghost" onClick={()=>edit(t)}>Edit</button><button className="btn-ghost" onClick={()=>toggle(t)}>{t.is_active?'Deactivate':'Activate'}</button></div>
+        </div>
+      ))}</div>}
+    </div>
+  )
+}
+
+function OfficersTab() {
+  const [officers, setOfficers] = useState([])
+  const [tenants, setTenants] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filterTenant, setFilterTenant] = useState('all')
+  useEffect(()=>{
+    Promise.all([
+      supabase.from('officers').select('*, tenants(name)').order('created_at',{ascending:false}),
+      supabase.from('tenants').select('id,name').eq('is_active',true)
+    ]).then(([o,t])=>{setOfficers(o.data||[]);setTenants(t.data||[]);setLoading(false)})
+  },[])
+  async function toggle(o){await supabase.from('officers').update({is_active:!o.is_active}).eq('id',o.id);const{data}=await supabase.from('officers').select('*, tenants(name)').order('created_at',{ascending:false});setOfficers(data||[])}
+  const filtered=filterTenant==='all'?officers:officers.filter(o=>o.tenant_id===filterTenant)
+  return (
+    <div className="officers-tab">
+      <div className="tab-header"><h2>Officers ({filtered.length})</h2><select value={filterTenant} onChange={e=>setFilterTenant(e.target.value)}><option value="all">All Tenants</option>{tenants.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+      {loading?<div className="loading-state">Loading...</div>:(
+        <div className="report-table">
+          <div className="table-header"><span>Name</span><span>Tenant</span><span>Role</span><span>Service No</span><span>Status</span><span>Actions</span></div>
+          {filtered.map(o=>(
+            <div className="table-row" key={o.id}>
+              <span>{o.rank} {o.name}</span><span>{o.tenants?.name}</span><span>{o.role}</span><span>{o.service_number}</span>
+              <span className={o.is_active?'text-green':'text-red'}>{o.is_active?'Active':'Inactive'}</span>
+              <span><button className="btn-xs" onClick={()=>toggle(o)}>{o.is_active?'Deactivate':'Activate'}</button></span>
             </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
 
-        <div className="section-label" style={{ marginBottom: '12px' }}>All installations</div>
-        {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
-          : tenants.map(t => (
-            <div key={t.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '15px', marginBottom: '2px' }}>{t.name}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>{t.sector} · {t.city}, {t.state} · Slug: {t.slug}</div>
-              </div>
-              <span className={`pill ${t.is_active ? 'pill-green' : 'pill-gray'}`}>{t.is_active ? 'Active' : 'Inactive'}</span>
+function AdminIncidentsTab() {
+  const [incidents, setIncidents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('open')
+  useEffect(()=>{
+    setLoading(true)
+    let q=supabase.from('incidents').select('*, tenants(name), gates(name), officers!incidents_officer_id_fkey(name,rank)').order('created_at',{ascending:false})
+    if(filter!=='all') q=q.eq('status',filter)
+    q.then(({data})=>{setIncidents(data||[]);setLoading(false)})
+  },[filter])
+  return (
+    <div className="incidents-tab">
+      <div className="tab-header"><h2>All Incidents</h2></div>
+      <div className="filter-row">{['open','acknowledged','resolved','all'].map(f=><button key={f} className={`filter-btn ${filter===f?'active':''`} onClick={()=>setFilter(f)}>{f.charAt(0).toUpperCase()+f.slice(1)}</button>)}</div>
+      {loading?<div className="loading-state">Loading...</div>:(
+        <div className="incidents-list">{incidents.map(inc=>(
+          <div key={inc.id} className={`incident-card severity-${inc.severity}`}>
+            <div className="incident-header">
+              <div className="incident-title-row"><span className="incident-type">{inc.type.replace(/_/g,' ')}</span><span className={`badge ${inc.severity==='critical'?'badge-red':inc.severity==='serious'?'badge-amber':'badge-blue'`}>{inc.severity}</span><span className={`badge ${inc.status==='open'?'badge-red':inc.status==='acknowledged'?'badge-amber':'badge-green'`}>{inc.status}</span></div>
+              <div className="incident-meta"><span>{inc.tenants?.name}</span>{inc.gates?.name&&<span> / {inc.gates.name}</span>}<span> / {new Date(inc.created_at).toLocaleString()}</span></div>
             </div>
-          ))
-        }
-      </div>
+            <p className="incident-description">{inc.description}</p>
+          </div>
+        ))}</div>
+      )}
+    </div>
+  )
+}
+
+function SettingsTab() {
+  return (
+    <div className="settings-tab">
+      <h2>Platform Settings</h2>
+      <div className="card"><h3>About SENTRi</h3><p>Version 1.0 — Phase 4</p><p>Built by IGATA Technologies</p></div>
+      <div className="card"><h3>Email Alerts</h3><p>Incident notifications via Nodemailer — Phase 6.</p></div>
     </div>
   )
 }
