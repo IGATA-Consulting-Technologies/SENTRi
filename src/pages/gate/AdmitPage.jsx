@@ -5,8 +5,6 @@ import { queueMovement } from '../../lib/offline'
 
 const DESTINATIONS = ['Administration Block', 'Officers Mess', 'Barracks / Quarters', 'Armoury', 'Medical Centre', 'Sports Complex', 'Provost Office', 'Signals Unit', 'Quartermaster Store', 'Commanding Officer Office', 'Other']
 const PURPOSES = ['Official visit', 'Delivery / Supply', 'Maintenance / Repair', 'Training', 'Personal visit', 'Medical', 'Contractor / Vendor', 'Other']
-const PR_TOKEN = 'cd023a0e31de97d28995b3849851088c23403542'
-
 export default function AdmitPage({ gateData, tenantData }) {
   const { guard, gate, tenant } = useGuardStore()
   const [type, setType] = useState(null)
@@ -75,15 +73,13 @@ export default function AdmitPage({ gateData, tenantData }) {
     c.getContext('2d').drawImage(v, 0, 0)
 
     try {
-      const blob = await new Promise(resolve => c.toBlob(resolve, 'image/jpeg', 0.95))
-      const formData = new FormData()
-      formData.append('upload', blob, 'plate.jpg')
-      formData.append('regions', 'ng')
+      // Convert canvas to base64 and send to our serverless proxy
+      const base64 = c.toDataURL('image/jpeg', 0.95).split(',')[1]
 
-      const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
+      const response = await fetch('/.netlify/functions/plate-recognizer', {
         method: 'POST',
-        headers: { 'Authorization': 'Token ' + PR_TOKEN },
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 })
       })
 
       if (!response.ok) {
