@@ -21,11 +21,8 @@ function CommandRoute() {
   return <CommandApp />
 }
 
-// Admin route — requires admin role
+// Admin route — AdminApp handles its own authentication via secret key
 function AdminRoute() {
-  const { isAuthenticated, officer } = useAuthStore()
-  if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (officer?.role !== 'admin') return <Navigate to="/command" replace />
   return <AdminApp />
 }
 
