@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
 import { queueMovement } from '../../lib/offline'
@@ -26,6 +26,14 @@ export default function AdmitPage({ gateData, tenantData }) {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
 
+  // Attach stream to video element after it renders
+  useEffect(() => {
+    if (cameraOpen && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.play().catch(() => {})
+    }
+  }, [cameraOpen])
+
   const effectiveGate = gate || gateData
   const effectiveTenant = tenant || tenantData
 
@@ -37,11 +45,15 @@ export default function AdmitPage({ gateData, tenantData }) {
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } } })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      })
       streamRef.current = stream
-      if (videoRef.current) videoRef.current.srcObject = stream
-      setCameraOpen(true)
-    } catch { alert('Camera access denied. Enter plate manually.') }
+      setCameraOpen(true) // useEffect will attach stream after render
+    } catch (err) {
+      console.error('Camera error:', err)
+      alert('Camera access denied. Please allow camera permissions and try again.')
+    }
   }
 
   function stopCamera() {
