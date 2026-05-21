@@ -91,7 +91,7 @@ export default function AdmitPage({ gateData, tenantData }) {
 
       if (data.results && data.results.length > 0) {
         const best = data.results[0]
-        const plateText = best.plate.text.toUpperCase().replace(/[^A-Z0-9-]/g, '').trim()
+        const plateText = (best.plate || '').toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim()
         const confidence = Math.round((best.score || 0) * 100)
         setOcrResult({ text: plateText, confidence })
         setPlate(plateText)
