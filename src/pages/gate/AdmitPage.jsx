@@ -66,22 +66,39 @@ export default function AdmitPage({ gateData, tenantData }) {
     setScanning(true)
     const v = videoRef.current
     const c = canvasRef.current
-
-    // Crop to plate region only — center 75% width, middle 35% height
-    const srcW = v.videoWidth
-    const srcH = v.videoHeight
-    const cropW = Math.round(srcW * 0.75)
-    const cropH = Math.round(srcH * 0.30)
-    const cropX = Math.round((srcW - cropW) / 2)
-    const cropY = Math.round((srcH - cropH) / 2)
-
-    c.width = cropW
-    c.height = cropH
-    c.getContext('2d').drawImage(v, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH)
-
+    c.width = v.videoWidth
+    c.height = v.videoHeight
+    c.getContext('2d').drawImage(v, 0, 0)
     try {
-      const Tesseract = (await import('tesseract.js')).default
-      const { data: { text, confidence } } = await Tesseract.recognize(c, 'eng', {
+      // Convert canvas to blob
+      const blob = await new Promise(resolve => c.toBlob(resolve, 'image/jpeg', 0.9))
+      const formData = new FormData()
+      formData.append('upload', blob, 'plate.jpg')
+      formData.append('regions', 'ng') // Nigeria
+      const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
+        method: 'POST',
+        headers: { 'Authorization': 'Token cd023a0e31de97d28995b3849851088c23403542' },
+        body: formData
+      })
+      const data = await response.json()
+      if (data.results && data.results.length > 0) {
+        const best = data.results[0]
+        const plateText = best.plate.text.toUpperCase().replace(/[^A-Z0-9]/g, ' ').trim()
+        const confidence = Math.round((best.score || 0) * 100)
+        setOcrResult({ text: plateText, confidence })
+        setPlate(plateText)
+        stopCamera()
+      } else {
+        // No plate detected - keep camera open, show message
+        alert('No plate detected. Reposition and try again, or enter manually.')
+      }
+    } catch (e) {
+      console.error('PlateRecognizer error:', e)
+      alert('Scan failed. Please enter plate manually.')
+    } finally {
+      setScanning(false)
+    }
+  } } = await Tesseract.recognize(c, 'eng', {
         logger: () => {},
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
       })
