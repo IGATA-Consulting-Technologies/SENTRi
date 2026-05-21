@@ -35,9 +35,11 @@ export const useAuthStore = create(
         }
         if (!['command', 'admin'].includes(officerData.role)) {
           await supabase.auth.signOut()
-          set({ authLoading: false, authError: 'Insufficient access level.' }); return
+          set({ authLoading: false, authError: 'Insufficient access level.' })
+          return { success: false }
         }
         set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true, authLoading: false, authError: null })
+        return { success: true, role: officerData.role }
       },
 
       logout: async () => {
