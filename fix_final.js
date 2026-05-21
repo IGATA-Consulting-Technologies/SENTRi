@@ -1,4 +1,7 @@
-import { create } from 'zustand'
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+const store = `import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 
@@ -93,3 +96,13 @@ export const useGuardStore = create(
     }
   )
 )
+`;
+
+fs.mkdirSync('src/store', { recursive: true });
+fs.writeFileSync('src/store/index.js', store, 'utf8');
+console.log('Store fixed - restoreSession and setOnline added back');
+
+execSync('git add -A', { stdio: 'inherit' });
+execSync('git commit -m "Fix store - restore missing restoreSession and guardSetOnline functions"', { stdio: 'inherit' });
+execSync('git push origin main', { stdio: 'inherit' });
+console.log('Done. Netlify deploying in 30 seconds.');
