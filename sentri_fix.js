@@ -1,4 +1,112 @@
-import { useEffect, useState } from 'react'
+// SENTRi — Complete Fix Script
+// Fixes: RLS blocking inserts, offline sync, plate recognizer proxy
+// Run with: node --input-type=commonjs < sentri_fix.js
+
+const fs = require('fs')
+const path = require('path')
+const { execSync } = require('child_process')
+
+// ─── 1. NETLIFY PROXY FUNCTION (zero npm dependencies) ───────────────────────
+
+const plateRecognizerFn = `const https = require('https')
+
+exports.handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
+      body: ''
+    }
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' }
+  }
+
+  try {
+    const { image } = JSON.parse(event.body)
+    if (!image) return { statusCode: 400, body: JSON.stringify({ error: 'No image provided' }) }
+
+    const imageBuffer = Buffer.from(image, 'base64')
+    const boundary = 'SENTRiBoundary' + Date.now()
+
+    // Build multipart form manually — no npm needed
+    const regionPart = [
+      '--' + boundary,
+      'Content-Disposition: form-data; name="regions"',
+      '',
+      'ng'
+    ].join('\\r\\n')
+
+    const filePart = [
+      '\\r\\n--' + boundary,
+      'Content-Disposition: form-data; name="upload"; filename="plate.jpg"',
+      'Content-Type: image/jpeg',
+      ''
+    ].join('\\r\\n')
+
+    const closing = '\\r\\n--' + boundary + '--\\r\\n'
+
+    const body = Buffer.concat([
+      Buffer.from(regionPart + '\\r\\n'),
+      Buffer.from(filePart + '\\r\\n'),
+      imageBuffer,
+      Buffer.from(closing)
+    ])
+
+    const result = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.platerecognizer.com',
+        path: '/v1/plate-reader/',
+        method: 'POST',
+        headers: {
+          'Authorization': 'Token cd023a0e31de97d28995b3849851088c23403542',
+          'Content-Type': 'multipart/form-data; boundary=' + boundary,
+          'Content-Length': body.length
+        }
+      }
+
+      const req = https.request(options, (res) => {
+        let data = ''
+        res.on('data', chunk => data += chunk)
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)) }
+          catch (e) { reject(new Error('Invalid JSON from PlateRecognizer: ' + data)) }
+        })
+      })
+
+      req.on('error', reject)
+      req.write(body)
+      req.end()
+    })
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify(result)
+    }
+
+  } catch (error) {
+    console.error('Proxy error:', error.message)
+    return {
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ error: error.message, results: [] })
+    }
+  }
+}
+`
+
+// ─── 2. GATEAPP — with offline sync engine ───────────────────────────────────
+
+const gateAppContent = `import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
@@ -136,3 +244,33 @@ export default function GateApp() {
     </div>
   )
 }
+`
+
+// ─── WRITE FILES ──────────────────────────────────────────────────────────────
+
+console.log('Writing fixes...')
+
+// Fix 1: Netlify proxy function
+fs.mkdirSync('netlify/functions', { recursive: true })
+fs.writeFileSync('netlify/functions/plate-recognizer.js', plateRecognizerFn, 'utf8')
+console.log('✓ netlify/functions/plate-recognizer.js — rewritten, zero npm deps')
+
+// Fix 2: GateApp with sync engine
+fs.writeFileSync('src/pages/gate/GateApp.jsx', gateAppContent, 'utf8')
+console.log('✓ src/pages/gate/GateApp.jsx — offline sync engine added')
+
+// Fix 3: Remove the functions package.json (was requiring node-fetch/form-data)
+const fnPkgPath = 'netlify/functions/package.json'
+if (fs.existsSync(fnPkgPath)) {
+  fs.unlinkSync(fnPkgPath)
+  console.log('✓ netlify/functions/package.json — removed (no longer needed)')
+}
+
+// ─── GIT PUSH ─────────────────────────────────────────────────────────────────
+
+console.log('\nPushing to GitHub...')
+execSync('git add -A', { stdio: 'inherit' })
+execSync('git commit -m "Fix: plate recognizer proxy (no npm deps) + offline sync engine"', { stdio: 'inherit' })
+execSync('git push origin main', { stdio: 'inherit' })
+console.log('\n✓ Done. Netlify deploying in ~30 seconds.')
+console.log('\nNEXT STEP: Run the SQL fix in Supabase (see instructions above).')
