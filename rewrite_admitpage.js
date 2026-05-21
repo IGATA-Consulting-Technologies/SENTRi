@@ -1,4 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+const admitPage = `import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
 import { queueMovement } from '../../lib/offline'
@@ -156,7 +159,7 @@ export default function AdmitPage({ gateData, tenantData }) {
       </div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '700', marginBottom: '4px' }}>Admitted</h2>
       <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>
-        {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} &middot; {!navigator.onLine ? 'Offline — will sync' : 'Logged'}
+        {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} &middot; {!navigator.onLine ? 'Offline \u2014 will sync' : 'Logged'}
       </p>
       {submitted.plate_number && (
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', letterSpacing: '0.12em', marginBottom: '16px', background: 'var(--bg-3)', padding: '12px 24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-med)' }}>
@@ -165,7 +168,7 @@ export default function AdmitPage({ gateData, tenantData }) {
       )}
       <div className="card" style={{ width: '100%', maxWidth: '360px', marginBottom: '20px' }}>
         {[
-          { label: 'Visitor', value: submitted.visitor_name || '—' },
+          { label: 'Visitor', value: submitted.visitor_name || '\u2014' },
           { label: 'Destination', value: submitted.destination },
           { label: 'Purpose', value: submitted.purpose },
           { label: 'Officer', value: (guard?.rank || '') + ' ' + (guard?.name || '') }
@@ -246,7 +249,7 @@ export default function AdmitPage({ gateData, tenantData }) {
                     <span style={{ fontSize: '12px', fontWeight: '600', color: ocrResult.confidence > 70 ? 'var(--green)' : 'var(--amber)' }}>{ocrResult.confidence}% confidence</span>
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '22px', letterSpacing: '0.12em', marginBottom: '8px' }}>{plate}</div>
-                  {ocrResult.confidence < 70 && <div className="alert alert-warn" style={{ marginBottom: '8px', fontSize: '12px' }}>Low confidence — verify plate carefully.</div>}
+                  {ocrResult.confidence < 70 && <div className="alert alert-warn" style={{ marginBottom: '8px', fontSize: '12px' }}>Low confidence \u2014 verify plate carefully.</div>}
                   <button onClick={() => { setOcrResult(null); setPlate('') }} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-display)', fontWeight: '600' }}>Rescan</button>
                 </div>
               )}
@@ -304,24 +307,37 @@ export default function AdmitPage({ gateData, tenantData }) {
           <div className="field">
             <label>Destination *</label>
             <select value={destination} onChange={e => setDestination(e.target.value)}>
-              <option value="">Select destination…</option>
+              <option value="">Select destination\u2026</option>
               {DESTINATIONS.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
           <div className="field">
             <label>Purpose *</label>
             <select value={purpose} onChange={e => setPurpose(e.target.value)}>
-              <option value="">Select purpose…</option>
+              <option value="">Select purpose\u2026</option>
               {PURPOSES.map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           {type === 'vehicle' && <div className="field"><label>Occupants</label><input type="number" min="1" max="20" value={occupants} onChange={e => setOccupants(e.target.value)} /></div>}
           <div className="field"><label>Notes (optional)</label><input type="text" placeholder="Additional notes" value={notes} onChange={e => setNotes(e.target.value)} /></div>
           <button className="btn btn-success btn-full btn-lg" onClick={submit} disabled={!destination || !purpose || submitting}>
-            {submitting ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Logging...</> : '✓ Admit ' + type}
+            {submitting ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Logging...</> : '\u2713 Admit ' + type}
           </button>
         </div>
       )}
     </div>
   )
 }
+`;
+
+fs.mkdirSync('src/pages/gate', { recursive: true });
+fs.writeFileSync('src/pages/gate/AdmitPage.jsx', admitPage, 'utf8');
+console.log('AdmitPage.jsx completely rewritten - clean single file');
+console.log('PlateRecognizer present:', admitPage.includes('platerecognizer.com'));
+console.log('Tesseract present:', admitPage.includes('tesseract'));
+console.log('navigator.onLine present:', admitPage.includes('navigator.onLine'));
+
+execSync('git add -A', { stdio: 'inherit' });
+execSync('git commit -m "Complete rewrite of AdmitPage - clean PlateRecognizer + sync fix"', { stdio: 'inherit' });
+execSync('git push origin main', { stdio: 'inherit' });
+console.log('Done. Netlify deploying...');
