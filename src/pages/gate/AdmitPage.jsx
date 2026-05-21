@@ -7,7 +7,7 @@ const DESTINATIONS = ['Administration Block', 'Officers Mess', 'Barracks / Quart
 const PURPOSES = ['Official visit', 'Delivery / Supply', 'Maintenance / Repair', 'Training', 'Personal visit', 'Medical', 'Contractor / Vendor', 'Other']
 
 export default function AdmitPage({ gateData, tenantData }) {
-  const { guard, gate, tenant, isOnline } = useGuardStore()
+  const { guard, gate, tenant } = useGuardStore()
   const [type, setType] = useState(null)
   const [step, setStep] = useState(0)
   const [plate, setPlate] = useState('')
@@ -114,10 +114,10 @@ export default function AdmitPage({ gateData, tenantData }) {
       notes: notes.trim() || null,
       entry_time: new Date().toISOString(),
       ocr_confidence: ocrResult?.confidence || null,
-      synced: isOnline
+      synced: navigator.onLine
     }
     try {
-      if (isOnline) {
+      if (navigator.onLine) {
         const { data, error } = await supabase.from('movements').insert(movement).select().single()
         if (error) throw error
         setSubmitted(data || movement)
@@ -143,7 +143,7 @@ export default function AdmitPage({ gateData, tenantData }) {
       </div>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '700', marginBottom: '4px' }}>Admitted</h2>
       <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>
-        {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {!isOnline ? 'Offline — will sync' : 'Logged'}
+        {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} · {!navigator.onLine ? 'Offline — will sync' : 'Logged'}
       </p>
       {submitted.plate_number && (
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', letterSpacing: '0.12em', marginBottom: '16px', background: 'var(--bg-3)', padding: '12px 24px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-med)' }}>
