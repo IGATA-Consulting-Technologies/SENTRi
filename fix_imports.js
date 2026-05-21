@@ -1,4 +1,13 @@
-import { useEffect, useState } from 'react'
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+// Read tabs.jsx to see what's exported
+const tabs = fs.readFileSync('src/pages/command/tabs.jsx', 'utf8');
+const exports = tabs.match(/export (function|const) \w+/g) || [];
+console.log('Exports found in tabs.jsx:', exports);
+
+// Fix CommandApp.jsx to import from tabs.jsx instead of individual files
+const commandApp = `import { useEffect, useState } from 'react'
 import { useAuthStore } from '../../store'
 import { supabase } from '../../lib/supabase'
 import { LiveTab, WatchlistTab, AlertsTab, ProfileTab } from './tabs'
@@ -89,3 +98,12 @@ export default function CommandApp() {
     </div>
   )
 }
+`;
+
+fs.writeFileSync('src/pages/command/CommandApp.jsx', commandApp, 'utf8');
+console.log('CommandApp.jsx fixed with correct imports');
+
+execSync('git add -A', { stdio: 'inherit' });
+execSync('git commit -m "Fix CommandApp imports - use tabs.jsx for existing components"', { stdio: 'inherit' });
+execSync('git push origin main', { stdio: 'inherit' });
+console.log('Done. Netlify deploying...');
