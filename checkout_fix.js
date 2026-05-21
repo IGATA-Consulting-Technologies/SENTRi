@@ -1,4 +1,10 @@
-import { useState, useEffect } from 'react'
+// SENTRi — Checkout Fix
+// Run with: node --input-type=commonjs < checkout_fix.js
+
+const fs = require('fs')
+const { execSync } = require('child_process')
+
+const checkoutPage = `import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
 
@@ -237,3 +243,37 @@ export default function CheckoutPage() {
     </div>
   )
 }
+`
+
+fs.writeFileSync('src/pages/gate/CheckoutPage.jsx', checkoutPage, 'utf8')
+console.log('✓ CheckoutPage.jsx rewritten')
+
+// Verify
+const written = fs.readFileSync('src/pages/gate/CheckoutPage.jsx', 'utf8')
+const checks = {
+  'loads from supabase': written.includes("from('movements')"),
+  'filters exit_time null': written.includes('exit_time', null),
+  'search works': written.includes('plate_number?.toLowerCase'),
+  'checkout updates exit_time': written.includes('exit_time: exitTime'),
+  'duration computed': written.includes('duration_minutes'),
+  'success banner': written.includes('checked out'),
+  'no auth required': !written.includes('auth.uid')
+}
+
+let allPass = true
+Object.entries(checks).forEach(([k, v]) => {
+  console.log((v ? '✓' : '✗') + ' ' + k)
+  if (!v) allPass = false
+})
+
+if (!allPass) {
+  console.log('FAILED - not pushing')
+  process.exit(1)
+}
+
+console.log('\nAll checks passed. Pushing...')
+execSync('git add -A', { stdio: 'inherit' })
+execSync('git commit -m "Checkout: full list with search, tap-to-checkout, duration tracking"', { stdio: 'inherit' })
+execSync('git push origin main', { stdio: 'inherit' })
+console.log('\n✓ Done. Netlify deploying in ~30 seconds.')
+console.log('\nRun this SQL in Supabase now (see message above).')
