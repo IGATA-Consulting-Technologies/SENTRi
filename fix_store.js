@@ -1,4 +1,8 @@
-import { create } from 'zustand'
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+// Zustand 4.x with persist - correct syntax
+const store = `import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 
@@ -107,3 +111,24 @@ export const useGuardStore = create(
     }
   )
 )
+`;
+
+fs.mkdirSync('src/store', { recursive: true });
+fs.writeFileSync('src/store/index.js', store, 'utf8');
+console.log('Store fixed');
+
+// Also check if the original store file from Phase 1 had different syntax
+// The issue might be in CommandLogin.jsx using the old store shape
+// Let's also check CommandLogin.jsx exists and uses correct import
+const loginPath = 'src/pages/auth/CommandLogin.jsx';
+if (fs.existsSync(loginPath)) {
+  const login = fs.readFileSync(loginPath, 'utf8');
+  console.log('CommandLogin first 5 lines:', login.split('\n').slice(0, 5).join('\n'));
+} else {
+  console.log('CommandLogin.jsx NOT FOUND - this is the problem!');
+}
+
+execSync('git add -A', { stdio: 'inherit' });
+execSync('git commit -m "Fix store and diagnose login issue"', { stdio: 'inherit' });
+execSync('git push origin main', { stdio: 'inherit' });
+console.log('Done');
