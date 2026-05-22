@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
 import { queueMovement } from '../../lib/offline'
+import { sendFlagAlertEmail } from '../../lib/email'
 
 const DESTINATIONS = ['Administration Block', 'Officers Mess', 'Barracks / Quarters', 'Armoury', 'Medical Centre', 'Sports Complex', 'Provost Office', 'Signals Unit', 'Quartermaster Store', 'Commanding Officer Office', 'Other']
 const PURPOSES = ['Official visit', 'Delivery / Supply', 'Maintenance / Repair', 'Training', 'Personal visit', 'Medical', 'Contractor / Vendor', 'Other']
@@ -107,6 +108,40 @@ export default function AdmitPage({ gateData, tenantData }) {
     }
   }
 
+
+  // Send email alert if entry was flagged
+  async function checkAndAlertIfFlagged(movementId) {
+    try {
+      const { data: movement } = await supabase
+        .from('movements')
+        .select('flag_triggered, plate_number, visitor_name, destination, purpose')
+        .eq('id', movementId)
+        .single()
+
+      if (movement?.flag_triggered) {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('name, report_emails')
+          .eq('id', effectiveTenant.id)
+          .single()
+
+        if (tenantData?.report_emails?.length > 0) {
+          await sendFlagAlertEmail({
+            tenantName: tenantData.name,
+            gateName: effectiveGate?.name || 'Unknown Gate',
+            plate: movement.plate_number,
+            visitorName: movement.visitor_name,
+            destination: movement.destination,
+            purpose: movement.purpose,
+            reportEmails: tenantData.report_emails
+          })
+        }
+      }
+    } catch (e) {
+      console.error('Flag check error:', e)
+    }
+  }
+
   async function submit() {
     if (!destination || !purpose) return
     setSubmitting(true)
@@ -130,6 +165,7 @@ export default function AdmitPage({ gateData, tenantData }) {
         const { data, error } = await supabase.from('movements').insert(movement).select().single()
         if (error) throw error
         setSubmitted(data || movement)
+        if (data?.id) checkAndAlertIfFlagged(data.id)
       } else {
         await queueMovement({ action: 'insert', data: movement })
         setSubmitted(movement)
