@@ -33,7 +33,7 @@ export default function IncidentsTab() {
   async function fetchIncidents() {
     setLoading(true)
     let q = supabase.from('incidents')
-      .select('*, gates(name), officers!incidents_officer_id_fkey(name, rank)')
+      .select('*, gates(name)')
       .eq('tenant_id', tenant.id)
       .order('created_at', { ascending: false })
     if (filter !== 'all') q = q.eq('status', filter)
@@ -83,7 +83,7 @@ export default function IncidentsTab() {
                 </div>
                 <div className="incident-meta">
                   {inc.gates?.name && <span>{inc.gates.name}</span>}
-                  {inc.officers?.name && <span>{inc.officers.rank} {inc.officers.name}</span>}
+                
                   <span>{new Date(inc.created_at).toLocaleString()}</span>
                 </div>
               </div>
