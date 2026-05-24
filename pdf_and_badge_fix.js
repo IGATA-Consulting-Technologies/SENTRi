@@ -1,4 +1,12 @@
-import { useState, useEffect } from 'react'
+// SENTRi — PDF Report + Badge Fix
+// Run with: node --input-type=commonjs < pdf_and_badge_fix.js
+
+const fs = require('fs')
+const { execSync } = require('child_process')
+
+// ─── 1. NEW ReportTab with PDF download (no email) ────────────────────────────
+
+const reportTab = `import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store'
 
@@ -20,57 +28,57 @@ function generateReportHTML(data, tenantName, periodLabel) {
     { label: 'Incidents', value: data.incidents, color: data.incidents > 0 ? '#92530a' : '#1a1a2e' },
     { label: 'Critical Incidents', value: data.criticalIncidents, color: data.criticalIncidents > 0 ? '#c0132a' : '#1a1a2e' },
     ...(data.avgDuration ? [{ label: 'Avg Stay (min)', value: data.avgDuration, color: '#1a1a2e' }] : [])
-  ].map(s => `
+  ].map(s => \`
     <div style="background:#f8f9fb;border:1px solid #e2e6ed;border-radius:8px;padding:16px;text-align:center;">
-      <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">${s.label}</div>
-      <div style="font-size:28px;font-weight:700;color:${s.color};">${s.value}</div>
+      <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">\${s.label}</div>
+      <div style="font-size:28px;font-weight:700;color:\${s.color};">\${s.value}</div>
     </div>
-  `).join('')
+  \`).join('')
 
-  const gateRows = data.byGate.map(g => `
+  const gateRows = data.byGate.map(g => \`
     <tr>
-      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;">${g.name}</td>
-      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${g.total}</td>
-      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${g.vehicles}</td>
-      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${g.pedestrians}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;">\${g.name}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">\${g.total}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">\${g.vehicles}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">\${g.pedestrians}</td>
     </tr>
-  `).join('')
+  \`).join('')
 
-  const dayRows = data.byDay.slice(0, 31).map(d => `
+  const dayRows = data.byDay.slice(0, 31).map(d => \`
     <tr>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">${new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${d.total}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${d.vehicles}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${d.pedestrians}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;color:${d.flags > 0 ? '#c0132a' : '#6b7280'};font-weight:${d.flags > 0 ? '700' : '400'};">${d.flags}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">\${new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">\${d.total}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">\${d.vehicles}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">\${d.pedestrians}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;color:\${d.flags > 0 ? '#c0132a' : '#6b7280'};font-weight:\${d.flags > 0 ? '700' : '400'};">\${d.flags}</td>
     </tr>
-  `).join('')
+  \`).join('')
 
-  const destRows = data.topDest.map(({ dest, count }) => `
+  const destRows = data.topDest.map(({ dest, count }) => \`
     <tr>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">${dest}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${count}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">\${dest}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">\${count}</td>
       <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">
         <div style="background:#e2e6ed;border-radius:4px;height:8px;">
-          <div style="background:#1a56db;border-radius:4px;height:8px;width:${Math.round(count / data.topDest[0].count * 100)}%;"></div>
+          <div style="background:#1a56db;border-radius:4px;height:8px;width:\${Math.round(count / data.topDest[0].count * 100)}%;"></div>
         </div>
       </td>
     </tr>
-  `).join('')
+  \`).join('')
 
-  const repeatRows = data.repeatVisitors.map(v => `
+  const repeatRows = data.repeatVisitors.map(v => \`
     <tr>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;font-family:monospace;">${v.plate_number || v.visitor_name || '—'}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${v.visit_count}</td>
-      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">${new Date(v.last_visit).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;font-family:monospace;">\${v.plate_number || v.visitor_name || '—'}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">\${v.visit_count}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">\${new Date(v.last_visit).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
     </tr>
-  `).join('')
+  \`).join('')
 
-  return `<!DOCTYPE html>
+  return \`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SENTRi Intelligence Report — ${tenantName}</title>
+  <title>SENTRi Intelligence Report — \${tenantName}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: white; }
@@ -92,13 +100,13 @@ function generateReportHTML(data, tenantName, periodLabel) {
       </div>
       <div style="text-align:right;">
         <div style="color:rgba(255,255,255,0.7);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Generated</div>
-        <div style="color:white;font-size:13px;font-weight:600;">${now}</div>
+        <div style="color:white;font-size:13px;font-weight:600;">\${now}</div>
       </div>
     </div>
     <div style="margin-top:28px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.2);">
       <div style="color:rgba(255,255,255,0.7);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Intelligence Report</div>
-      <div style="color:white;font-size:22px;font-weight:700;">${tenantName}</div>
-      <div style="color:rgba(255,255,255,0.8);font-size:14px;margin-top:4px;">${periodLabel} Summary</div>
+      <div style="color:white;font-size:22px;font-weight:700;">\${tenantName}</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:14px;margin-top:4px;">\${periodLabel} Summary</div>
     </div>
   </div>
 
@@ -107,11 +115,11 @@ function generateReportHTML(data, tenantName, periodLabel) {
     <!-- Stats grid -->
     <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:16px;">Summary Statistics</h2>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:36px;">
-      ${statCards}
+      \${statCards}
     </div>
 
     <!-- By Gate -->
-    ${data.byGate.length > 0 ? `
+    \${data.byGate.length > 0 ? \`
     <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Activity by Gate</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
       <thead>
@@ -122,11 +130,11 @@ function generateReportHTML(data, tenantName, periodLabel) {
           <th style="padding:10px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Pedestrians</th>
         </tr>
       </thead>
-      <tbody>${gateRows}</tbody>
-    </table>` : ''}
+      <tbody>\${gateRows}</tbody>
+    </table>\` : ''}
 
     <!-- Top Destinations -->
-    ${data.topDest.length > 0 ? `
+    \${data.topDest.length > 0 ? \`
     <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Top Destinations</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
       <thead>
@@ -136,11 +144,11 @@ function generateReportHTML(data, tenantName, periodLabel) {
           <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Frequency</th>
         </tr>
       </thead>
-      <tbody>${destRows}</tbody>
-    </table>` : ''}
+      <tbody>\${destRows}</tbody>
+    </table>\` : ''}
 
     <!-- Daily Breakdown -->
-    ${data.byDay.length > 0 ? `
+    \${data.byDay.length > 0 ? \`
     <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Daily Breakdown</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
       <thead>
@@ -152,11 +160,11 @@ function generateReportHTML(data, tenantName, periodLabel) {
           <th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Flags</th>
         </tr>
       </thead>
-      <tbody>${dayRows}</tbody>
-    </table>` : ''}
+      <tbody>\${dayRows}</tbody>
+    </table>\` : ''}
 
     <!-- Repeat Visitors -->
-    ${data.repeatVisitors.length > 0 ? `
+    \${data.repeatVisitors.length > 0 ? \`
     <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Repeat Visitors</h2>
     <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
       <thead>
@@ -166,8 +174,8 @@ function generateReportHTML(data, tenantName, periodLabel) {
           <th style="padding:8px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Last Visit</th>
         </tr>
       </thead>
-      <tbody>${repeatRows}</tbody>
-    </table>` : ''}
+      <tbody>\${repeatRows}</tbody>
+    </table>\` : ''}
 
   </div>
 
@@ -178,7 +186,7 @@ function generateReportHTML(data, tenantName, periodLabel) {
   </div>
 
 </body>
-</html>`
+</html>\`
 }
 
 export default function ReportTab() {
@@ -366,3 +374,186 @@ export default function ReportTab() {
     </div>
   )
 }
+`
+
+// ─── 2. FIX CommandApp — pass fetchCounts to IncidentsTab ────────────────────
+
+const commandAppFix = `import { useEffect, useState } from 'react'
+import { useAuthStore } from '../../store'
+import { supabase } from '../../lib/supabase'
+import { LiveTab, WatchlistTab, AlertsTab, ProfileTab } from './tabs'
+import IncidentsTab from './IncidentsTab'
+import ReportTab from './ReportTab'
+import GatesTab from './GatesTab'
+
+const TABS = [
+  { key: 'live', label: 'Live' },
+  { key: 'watchlist', label: 'Watchlist' },
+  { key: 'alerts', label: 'Alerts' },
+  { key: 'incidents', label: 'Incidents' },
+  { key: 'report', label: 'Report' },
+  { key: 'gates', label: 'Gates' },
+  { key: 'profile', label: 'Profile' },
+]
+
+export default function CommandApp() {
+  const { officer, tenant, logout } = useAuthStore()
+  const [activeTab, setActiveTab] = useState('live')
+  const [alertCount, setAlertCount] = useState(0)
+  const [incidentCount, setIncidentCount] = useState(0)
+
+  useEffect(() => {
+    fetchCounts()
+    const ch = supabase.channel('command-badges')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'flag_alerts', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'incidents', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'flag_alerts', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'incidents', filter: 'tenant_id=eq.' + tenant.id }, fetchCounts)
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [])
+
+  async function fetchCounts() {
+    const [a, i] = await Promise.all([
+      supabase.from('flag_alerts').select('id', { count: 'exact' }).eq('tenant_id', tenant.id).eq('acknowledged', false),
+      supabase.from('incidents').select('id', { count: 'exact' }).eq('tenant_id', tenant.id).eq('status', 'open')
+    ])
+    setAlertCount(a.count || 0)
+    setIncidentCount(i.count || 0)
+  }
+
+  function renderTab() {
+    switch (activeTab) {
+      case 'live': return <LiveTab />
+      case 'watchlist': return <WatchlistTab />
+      case 'alerts': return <AlertsTab onUnreadChange={setAlertCount} />
+      case 'incidents': return <IncidentsTab onCountChange={fetchCounts} />
+      case 'report': return <ReportTab />
+      case 'gates': return <GatesTab />
+      case 'profile': return <ProfileTab />
+      default: return <LiveTab />
+    }
+  }
+
+  return (
+    <div className="page">
+      <div className="topbar">
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '15px' }}>{tenant?.name}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
+            {officer?.rank} {officer?.name}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span className="online-dot" />
+          <button className="btn btn-ghost btn-sm" onClick={logout}>Sign out</button>
+        </div>
+      </div>
+
+      <div style={{
+        display: 'flex', gap: '4px', padding: '8px 16px',
+        borderBottom: '1px solid var(--border)',
+        overflowX: 'auto', background: 'var(--bg-0)'
+      }}>
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              padding: '6px 12px', borderRadius: '6px', border: 'none',
+              background: activeTab === tab.key ? 'var(--accent)' : 'transparent',
+              color: activeTab === tab.key ? 'white' : 'var(--text-1)',
+              fontFamily: 'var(--font-body)', fontSize: '13px', fontWeight: 500,
+              cursor: 'pointer', whiteSpace: 'nowrap', position: 'relative',
+              flexShrink: 0
+            }}
+          >
+            {tab.label}
+            {tab.key === 'alerts' && alertCount > 0 && (
+              <span style={{
+                position: 'absolute', top: '-4px', right: '-4px',
+                background: 'var(--red)', color: 'white',
+                borderRadius: '10px', fontSize: '10px', padding: '1px 5px', fontWeight: 700
+              }}>{alertCount}</span>
+            )}
+            {tab.key === 'incidents' && incidentCount > 0 && (
+              <span style={{
+                position: 'absolute', top: '-4px', right: '-4px',
+                background: 'var(--red)', color: 'white',
+                borderRadius: '10px', fontSize: '10px', padding: '1px 5px', fontWeight: 700
+              }}>{incidentCount}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="page-content page-content-padded">
+        {renderTab()}
+      </div>
+    </div>
+  )
+}
+`
+
+// ─── 3. FIX IncidentsTab — accept onCountChange prop ─────────────────────────
+
+let incTab = fs.readFileSync('src/pages/command/IncidentsTab.jsx', 'utf8')
+
+// Update function signature to accept onCountChange
+incTab = incTab.replace(
+  'export default function IncidentsTab() {',
+  'export default function IncidentsTab({ onCountChange }) {'
+)
+
+// Call onCountChange after every status update
+incTab = incTab.replace(
+  '    await supabase.from(\'incidents\').update(update).eq(\'id\', id)\n    fetchIncidents()',
+  '    await supabase.from(\'incidents\').update(update).eq(\'id\', id)\n    fetchIncidents()\n    if (onCountChange) onCountChange()'
+)
+
+// ─── WRITE FILES ──────────────────────────────────────────────────────────────
+
+console.log('Writing files...')
+
+fs.writeFileSync('src/pages/command/ReportTab.jsx', reportTab, 'utf8')
+console.log('✓ ReportTab.jsx — PDF download replaces email button')
+
+fs.writeFileSync('src/pages/command/CommandApp.jsx', commandAppFix, 'utf8')
+console.log('✓ CommandApp.jsx — passes onCountChange to IncidentsTab')
+
+fs.writeFileSync('src/pages/command/IncidentsTab.jsx', incTab, 'utf8')
+console.log('✓ IncidentsTab.jsx — calls onCountChange after status update')
+
+// ─── VERIFY ───────────────────────────────────────────────────────────────────
+
+const reportContent = fs.readFileSync('src/pages/command/ReportTab.jsx', 'utf8')
+const commandContent = fs.readFileSync('src/pages/command/CommandApp.jsx', 'utf8')
+const incContent = fs.readFileSync('src/pages/command/IncidentsTab.jsx', 'utf8')
+
+const checks = {
+  'ReportTab: downloadPDF function': reportContent.includes('downloadPDF'),
+  'ReportTab: no email function': !reportContent.includes('sendReport'),
+  'ReportTab: download button': reportContent.includes('Download PDF report'),
+  'ReportTab: opens print window': reportContent.includes('window.open'),
+  'ReportTab: HTML report generator': reportContent.includes('generateReportHTML'),
+  'ReportTab: IGATA footer in PDF': reportContent.includes('IGATA Technologies'),
+  'CommandApp: passes onCountChange': commandContent.includes('onCountChange={fetchCounts}'),
+  'IncidentsTab: accepts onCountChange': incContent.includes('{ onCountChange }'),
+  'IncidentsTab: calls onCountChange': incContent.includes('if (onCountChange) onCountChange()'),
+}
+
+let allPass = true
+Object.entries(checks).forEach(([k, v]) => {
+  console.log((v ? '✓' : '✗') + ' ' + k)
+  if (!v) allPass = false
+})
+
+if (!allPass) { console.log('\nSome checks failed'); process.exit(1) }
+
+console.log('\nAll checks passed. Pushing...')
+execSync('git add -A', { stdio: 'inherit' })
+execSync('git commit -m "PDF report download + incident badge live update fix"', { stdio: 'inherit' })
+execSync('git push origin main', { stdio: 'inherit' })
+console.log('\n✓ Done. Netlify deploying in ~30 seconds.')
+console.log('\nTest: Report tab → Download PDF report button')
+console.log('Test: Acknowledge incident → badge clears immediately')

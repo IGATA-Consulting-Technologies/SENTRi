@@ -47,7 +47,7 @@ export default function CommandApp() {
       case 'live': return <LiveTab />
       case 'watchlist': return <WatchlistTab />
       case 'alerts': return <AlertsTab onUnreadChange={setAlertCount} />
-      case 'incidents': return <IncidentsTab />
+      case 'incidents': return <IncidentsTab onCountChange={fetchCounts} />
       case 'report': return <ReportTab />
       case 'gates': return <GatesTab />
       case 'profile': return <ProfileTab />
@@ -70,8 +70,8 @@ export default function CommandApp() {
         </div>
       </div>
 
-      <div style={{ 
-        display: 'flex', gap: '4px', padding: '8px 16px', 
+      <div style={{
+        display: 'flex', gap: '4px', padding: '8px 16px',
         borderBottom: '1px solid var(--border)',
         overflowX: 'auto', background: 'var(--bg-0)'
       }}>
@@ -93,16 +93,14 @@ export default function CommandApp() {
               <span style={{
                 position: 'absolute', top: '-4px', right: '-4px',
                 background: 'var(--red)', color: 'white',
-                borderRadius: '10px', fontSize: '10px', padding: '1px 5px',
-                fontWeight: 700
+                borderRadius: '10px', fontSize: '10px', padding: '1px 5px', fontWeight: 700
               }}>{alertCount}</span>
             )}
             {tab.key === 'incidents' && incidentCount > 0 && (
               <span style={{
                 position: 'absolute', top: '-4px', right: '-4px',
                 background: 'var(--red)', color: 'white',
-                borderRadius: '10px', fontSize: '10px', padding: '1px 5px',
-                fontWeight: 700
+                borderRadius: '10px', fontSize: '10px', padding: '1px 5px', fontWeight: 700
               }}>{incidentCount}</span>
             )}
           </button>

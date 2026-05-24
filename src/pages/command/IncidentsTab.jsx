@@ -16,7 +16,7 @@ const TYPE_LABELS = {
 const SEVERITY_COLORS = { routine: 'badge-blue', serious: 'badge-amber', critical: 'badge-red' }
 const STATUS_COLORS = { open: 'badge-red', acknowledged: 'badge-amber', resolved: 'badge-green' }
 
-export default function IncidentsTab() {
+export default function IncidentsTab({ onCountChange }) {
   const { tenant, officer } = useAuthStore()
   const [incidents, setIncidents] = useState([])
   const [loading, setLoading] = useState(true)
@@ -48,6 +48,7 @@ export default function IncidentsTab() {
     if (status === 'resolved') { update.resolved_by = officer.id; update.resolved_at = new Date().toISOString() }
     await supabase.from('incidents').update(update).eq('id', id)
     fetchIncidents()
+    if (onCountChange) onCountChange()
   }
 
   const openCount = incidents.filter(i => i.status === 'open').length
