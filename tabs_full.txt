@@ -1,4 +1,4 @@
-// LiveTab.jsx
+﻿// LiveTab.jsx
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store'
@@ -34,10 +34,10 @@ export function LiveTab() {
     <div style={{ padding: '20px' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
-          { label: 'Inside now', value: stats.inside ?? '—', color: 'var(--green)' },
-          { label: 'Today total', value: stats.total ?? '—', color: 'var(--text-0)' },
-          { label: 'Flag hits', value: stats.flagged ?? '—', color: stats.flagged > 0 ? 'var(--red)' : 'var(--text-0)' },
-          { label: 'Avg stay', value: stats.avgDur ? `${stats.avgDur}m` : '—', color: 'var(--text-0)' }
+          { label: 'Inside now', value: stats.inside ?? 'â€”', color: 'var(--green)' },
+          { label: 'Today total', value: stats.total ?? 'â€”', color: 'var(--text-0)' },
+          { label: 'Flag hits', value: stats.flagged ?? 'â€”', color: stats.flagged > 0 ? 'var(--red)' : 'var(--text-0)' },
+          { label: 'Avg stay', value: stats.avgDur ? `${stats.avgDur}m` : 'â€”', color: 'var(--text-0)' }
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-2)', marginBottom: '6px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
@@ -47,9 +47,9 @@ export function LiveTab() {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <div className="section-label">Currently inside ({live.length})</div>
-        <button className="btn btn-ghost btn-sm" onClick={load}>↻ Refresh</button>
+        <button className="btn btn-ghost btn-sm" onClick={load}>â†» Refresh</button>
       </div>
-      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loadingâ€¦</div>
         : live.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>No vehicles currently inside.</div>
         : live.map(m => (
           <div key={m.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderColor: m.flag_triggered ? 'rgba(192,19,42,0.35)' : 'var(--border)' }}>
@@ -60,7 +60,7 @@ export function LiveTab() {
                 {m.visitor_name && <span style={{ fontSize: '13px', color: 'var(--text-1)' }}>{m.visitor_name}</span>}
                 {m.flag_triggered && <span className="pill pill-red">Flagged</span>}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>{m.destination} · {m.purpose} · {m.gates?.name}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>{m.destination} Â· {m.purpose} Â· {m.gates?.name}</div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
               <div style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: 'var(--amber)', fontWeight: '600' }}>{dur(m.entry_time)}</div>
@@ -110,11 +110,11 @@ export function WatchlistTab() {
           <div className="field" style={{ marginBottom: 0 }}><label>Watch type</label><select value={type} onChange={e => setType(e.target.value)}><option value="plate">Plate number</option><option value="name">Visitor name</option><option value="id_number">ID number</option></select></div>
           <div className="field" style={{ marginBottom: 0 }}><label>Value</label><input type="text" placeholder={type === 'plate' ? 'e.g. LND 472 HG' : 'Enter value'} value={value} onChange={e => setValue(e.target.value)} style={{ fontFamily: type === 'plate' ? 'var(--font-mono)' : 'inherit', letterSpacing: type === 'plate' ? '0.06em' : 0 }} /></div>
         </div>
-        <div className="field" style={{ marginBottom: '14px' }}><label>Reason (internal — never shown to guards)</label><input type="text" placeholder="Intelligence note…" value={reason} onChange={e => setReason(e.target.value)} /></div>
-        <button className="btn btn-danger" onClick={addFlag} disabled={adding || !value.trim()}>{adding ? 'Adding…' : '+ Flag this entry'}</button>
+        <div className="field" style={{ marginBottom: '14px' }}><label>Reason (internal â€” never shown to guards)</label><input type="text" placeholder="Intelligence noteâ€¦" value={reason} onChange={e => setReason(e.target.value)} /></div>
+        <button className="btn btn-danger" onClick={addFlag} disabled={adding || !value.trim()}>{adding ? 'Addingâ€¦' : '+ Flag this entry'}</button>
       </div>
       <div className="section-label">Active flags ({watchlist.length})</div>
-      {loading ? <div style={{ padding: '20px', color: 'var(--text-2)', textAlign: 'center' }}>Loading…</div>
+      {loading ? <div style={{ padding: '20px', color: 'var(--text-2)', textAlign: 'center' }}>Loadingâ€¦</div>
         : watchlist.length === 0 ? <div style={{ padding: '20px', color: 'var(--text-2)', textAlign: 'center' }}>No active flags.</div>
         : watchlist.map(w => (
           <div key={w.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', borderColor: 'rgba(192,19,42,0.25)', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -187,7 +187,7 @@ export function AlertsTab({ onUnreadChange }) {
   return (
     <div style={{ padding: '20px' }}>
       <div className="section-label" style={{ marginBottom: '14px' }}>Flag alerts</div>
-      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loadingâ€¦</div>
         : alerts.length === 0 ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>No alerts yet.</div>
         : alerts.map(a => (
           <div key={a.id} className="card" style={{ marginBottom: '8px', padding: '14px 16px', borderLeft: !a.acknowledged ? `3px solid var(--red)` : '1px solid var(--border)', opacity: a.acknowledged ? 0.6 : 1, display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
@@ -197,8 +197,8 @@ export function AlertsTab({ onUnreadChange }) {
                 <span className="plate">{a.watchlist?.value || a.movements?.plate_number}</span>
                 <span className="pill pill-red">Flag hit</span>
               </div>
-              <div style={{ fontSize: '13px', marginBottom: '3px' }}>{a.movements?.destination} · {a.movements?.purpose}</div>
-              {a.watchlist?.reason && <div style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '3px' }}>⚠ {a.watchlist.reason}</div>}
+              <div style={{ fontSize: '13px', marginBottom: '3px' }}>{a.movements?.destination} Â· {a.movements?.purpose}</div>
+              {a.watchlist?.reason && <div style={{ fontSize: '12px', color: 'var(--amber)', marginBottom: '3px' }}>âš  {a.watchlist.reason}</div>}
               <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>{new Date(a.alerted_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
             </div>
             {!a.acknowledged && (
@@ -243,13 +243,13 @@ export function ReportTab() {
     setLoading(false)
   }
 
-  if (loading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+  if (loading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loadingâ€¦</div>
   if (!report) return null
 
   return (
     <div style={{ padding: '20px' }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Weekly report</h2>
-      <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Last 7 days · {tenant?.name}</p>
+      <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Last 7 days Â· {tenant?.name}</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[{ label: 'Total movements', value: report.total }, { label: 'Vehicles', value: report.vehicles }, { label: 'Pedestrians', value: report.pedestrians }, { label: 'Flag hits', value: report.flagged, color: report.flagged > 0 ? 'var(--red)' : undefined }, { label: 'Avg stay', value: `${report.avgDur}m` }].map(s => (
           <div key={s.label} className="card" style={{ padding: '14px' }}>
@@ -277,7 +277,7 @@ export function ReportTab() {
         </div>
         {report.repeatPlates.length > 0 && (
           <div className="card" style={{ gridColumn: '1/-1' }}>
-            <div className="section-label" style={{ marginBottom: '10px', color: 'var(--amber)' }}>⚠ Repeat vehicles (2+ visits)</div>
+            <div className="section-label" style={{ marginBottom: '10px', color: 'var(--amber)' }}>âš  Repeat vehicles (2+ visits)</div>
             {report.repeatPlates.map(([plate, count]) => (
               <div key={plate} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
                 <span className="plate">{plate}</span><span style={{ fontSize: '13px', color: 'var(--amber)', fontWeight: '600' }}>{count} visits</span>
@@ -323,7 +323,7 @@ export function GatesTab() {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         Copy the URL and send via WhatsApp or SMS to the guard's phone. They open it in Chrome and tap "Add to home screen."
       </div>
-      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
+      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loadingâ€¦</div>
         : gates.map(gate => {
           const url = `${appUrl2}/gate/${tenant?.slug}/${gate.slug}`
           return (
@@ -334,7 +334,7 @@ export function GatesTab() {
                 {url}
               </div>
               <button className="btn btn-primary btn-sm" onClick={() => copyUrl(gate)}>
-                {copied === gate.id ? '✓ Copied!' : 'Copy URL'}
+                {copied === gate.id ? 'âœ“ Copied!' : 'Copy URL'}
               </button>
             </div>
           )
@@ -347,190 +347,57 @@ export function GatesTab() {
 // ProfileTab.jsx
 export function ProfileTab() {
   const { tenant, officer } = useAuthStore()
-  const [emails, setEmails] = useState([])
-  const [newEmail, setNewEmail] = useState('')
-  const [adding, setAdding] = useState(false)
-  const [addError, setAddError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [removing, setRemoving] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [reportEmails, setReportEmails] = useState((tenant?.report_emails || []).join(', '))
+  const [frequency, setFrequency] = useState(tenant?.report_frequency || 'both')
 
-  useEffect(() => { if (tenant?.id) loadEmails() }, [tenant])
-
-  async function loadEmails() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('tenants')
-      .select('report_emails')
-      .eq('id', tenant.id)
-      .single()
-    setEmails(data?.report_emails || [])
-    setLoading(false)
-  }
-
-  async function addEmail() {
-    setAddError('')
-    const email = newEmail.trim().toLowerCase()
-    if (!email) return
-    if (!/^[^s@]+@[^s@]+.[^s@]+$/.test(email)) {
-      setAddError('Please enter a valid email address')
-      return
-    }
-    if (emails.includes(email)) {
-      setAddError('This email is already registered')
-      return
-    }
-    setAdding(true)
-    const updated = [...emails, email]
-    const { error } = await supabase
-      .from('tenants')
-      .update({ report_emails: updated })
-      .eq('id', tenant.id)
-    if (error) {
-      setAddError('Failed to add email. Try again.')
-      setAdding(false)
-      return
-    }
-    // Send welcome email
-    try {
-      await fetch('/.netlify/functions/send-alert-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: [email],
-          subject: 'You have been added to SENTRi Intelligence Alerts — ' + tenant.name,
-          html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-            <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-              <div style="background:#1a56db;padding:28px;">
-                <div style="color:white;font-size:20px;font-weight:800;letter-spacing:0.08em;">🛡️ SENTRi</div>
-                <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">Movement Intelligence Platform</div>
-              </div>
-              <div style="padding:28px;">
-                <h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#1a1a2e;">You're now on the alert list</h2>
-                <p style="font-size:14px;color:#6b7280;margin-bottom:20px;">
-                  You have been added as a security intelligence recipient for <strong>${tenant.name}</strong>.
-                  You will now receive flag alerts, incident notifications, and intelligence reports directly to this email.
-                </p>
-                <div style="background:#f8f9fb;border:1.5px solid #e2e6ed;border-radius:8px;padding:16px;margin-bottom:24px;">
-                  <div style="font-size:12px;color:#6b7280;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;">Installation</div>
-                  <div style="font-size:15px;font-weight:600;color:#1a1a2e;">${tenant.name}</div>
-                </div>
-                <p style="font-size:13px;color:#9ca3af;">If you believe this was added in error, please contact your installation's command officer.</p>
-              </div>
-              <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;">
-                <span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span>
-                <span style="font-size:11px;color:#9ca3af;">SENTRi Intelligence</span>
-              </div>
-            </div>
-          </body></html>`
-        })
-      })
-    } catch (e) { console.error('Welcome email error:', e) }
-
-    setEmails(updated)
-    setNewEmail('')
-    setAdding(false)
-  }
-
-  async function removeEmail(email) {
-    setRemoving(email)
-    const updated = emails.filter(e => e !== email)
-    await supabase.from('tenants').update({ report_emails: updated }).eq('id', tenant.id)
-    setEmails(updated)
-    setRemoving(null)
+  async function saveReportSettings() {
+    setSaving(true)
+    const emails = reportEmails.split(',').map(e => e.trim()).filter(Boolean)
+    await supabase.from('tenants').update({ report_emails: emails, report_frequency: frequency }).eq('id', tenant.id)
+    setSaving(false); setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
   }
 
   return (
     <div style={{ padding: '20px' }}>
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '20px' }}>Installation profile</h2>
 
-      {/* Installation details */}
       <div className="card" style={{ marginBottom: '16px' }}>
         <div className="section-label" style={{ marginBottom: '14px' }}>Installation details</div>
         {[
           { label: 'Name', value: tenant?.name },
           { label: 'Sector', value: tenant?.sector },
-          { label: 'Branch', value: tenant?.branch || '—' },
-          { label: 'City', value: tenant?.city || '—' },
-          { label: 'State', value: tenant?.state || '—' }
+          { label: 'Branch', value: tenant?.branch || 'â€”' },
+          { label: 'City', value: tenant?.city || 'â€”' },
+          { label: 'State', value: tenant?.state || 'â€”' }
         ].map(r => (
           <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '14px' }}>
-            <span style={{ color: 'var(--text-2)' }}>{r.label}</span>
-            <span style={{ fontWeight: '500' }}>{r.value}</span>
+            <span style={{ color: 'var(--text-2)' }}>{r.label}</span><span style={{ fontWeight: '500' }}>{r.value}</span>
           </div>
         ))}
       </div>
 
-      {/* Alert recipients */}
       <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="section-label" style={{ marginBottom: '6px' }}>Security alert recipients</div>
-        <p style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '16px' }}>
-          These emails receive flag alerts, incident notifications, and intelligence reports instantly.
-          A confirmation email is sent when a new recipient is added.
-        </p>
-
-        {/* Add email input */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-          <input
-            type="email"
-            placeholder="Enter email address..."
-            value={newEmail}
-            onChange={e => { setNewEmail(e.target.value); setAddError('') }}
-            onKeyDown={e => e.key === 'Enter' && addEmail()}
-            style={{ flex: 1, padding: '10px 12px', border: '1.5px solid var(--border-med)', borderRadius: 'var(--radius-md)', fontSize: '14px', fontFamily: 'inherit', background: 'var(--bg-1)', color: 'var(--text-0)', outline: 'none' }}
-          />
-          <button
-            className="btn btn-primary"
-            onClick={addEmail}
-            disabled={adding || !newEmail.trim()}
-            style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-          >
-            {adding ? 'Adding...' : '+ Add'}
-          </button>
+        <div className="section-label" style={{ marginBottom: '14px' }}>Intelligence reports</div>
+        <div className="field">
+          <label>Report recipients (comma-separated emails)</label>
+          <input type="text" placeholder="co@installation.mil.ng, cos@installation.mil.ng" value={reportEmails} onChange={e => setReportEmails(e.target.value)} />
         </div>
-
-        {addError && (
-          <div className="alert alert-danger" style={{ marginBottom: '12px', padding: '10px 12px' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
-              <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-            {addError}
-          </div>
-        )}
-
-        {/* Email list */}
-        {loading ? (
-          <div style={{ padding: '12px 0', color: 'var(--text-2)', fontSize: '13px' }}>Loading...</div>
-        ) : emails.length === 0 ? (
-          <div style={{ padding: '16px', background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', textAlign: 'center', fontSize: '13px', color: 'var(--text-2)' }}>
-            No recipients yet. Add an email above.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {emails.map(email => (
-              <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                      <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                  </div>
-                  <span style={{ fontSize: '13px', color: 'var(--text-0)', fontWeight: '500' }}>{email}</span>
-                </div>
-                <button
-                  onClick={() => removeEmail(email)}
-                  disabled={removing === email}
-                  style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-display)', fontWeight: '600', padding: '4px 8px', borderRadius: '4px' }}
-                >
-                  {removing === email ? '...' : 'Remove'}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="field" style={{ marginBottom: '14px' }}>
+          <label>Report frequency</label>
+          <select value={frequency} onChange={e => setFrequency(e.target.value)}>
+            <option value="weekly">Weekly only</option>
+            <option value="monthly">Monthly only</option>
+            <option value="both">Weekly + Monthly</option>
+          </select>
+        </div>
+        <button className="btn btn-primary" onClick={saveReportSettings} disabled={saving}>
+          {saving ? 'Savingâ€¦' : saved ? 'âœ“ Saved' : 'Save report settings'}
+        </button>
       </div>
 
-      {/* Logged in as */}
       <div className="card">
         <div className="section-label" style={{ marginBottom: '14px' }}>Logged in as</div>
         <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '4px' }}>{officer?.rank} {officer?.name}</div>
@@ -540,4 +407,5 @@ export function ProfileTab() {
     </div>
   )
 }
+
 export default LiveTab
