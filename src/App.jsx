@@ -5,15 +5,15 @@ import GateApp from './pages/gate/GateApp'
 import CommandApp from './pages/command/CommandApp'
 import AdminApp from './pages/admin/AdminApp'
 import CommandLogin from './pages/auth/CommandLogin'
+import ResetPassword from './pages/auth/ResetPassword'
+import OnboardingWizard from './pages/auth/OnboardingWizard'
 import NotFound from './pages/NotFound'
 
-// Gate route — loads tenant + gate from URL params
 function GateRoute() {
   const { tenantSlug, gateSlug } = useParams()
   return <GateApp tenantSlug={tenantSlug} gateSlug={gateSlug} />
 }
 
-// Command route — requires auth
 function CommandRoute() {
   const { isAuthenticated, officer } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
@@ -21,7 +21,12 @@ function CommandRoute() {
   return <CommandApp />
 }
 
-// Admin route — AdminApp handles its own authentication via secret key
+function OnboardingRoute() {
+  const { isAuthenticated } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <OnboardingWizard />
+}
+
 function AdminRoute() {
   return <AdminApp />
 }
@@ -42,17 +47,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Guard PWA — one URL per gate, no login */}
         <Route path="/gate/:tenantSlug/:gateSlug" element={<GateRoute />} />
-
-        {/* Command dashboard — CO, COS, Intelligence */}
         <Route path="/command/*" element={<CommandRoute />} />
         <Route path="/login" element={<CommandLogin />} />
-
-        {/* IGATA Superadmin */}
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/onboarding" element={<OnboardingRoute />} />
         <Route path="/admin/*" element={<AdminRoute />} />
-
-        {/* Root redirect */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

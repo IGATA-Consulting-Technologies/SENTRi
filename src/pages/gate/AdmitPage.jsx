@@ -29,6 +29,28 @@ export default function AdmitPage({ gateData, tenantData }) {
   const effectiveGate = gate || gateData
   const effectiveTenant = tenant || tenantData
 
+  // Load tenant custom destinations and purposes
+  const [tenantDestinations, setTenantDestinations] = useState(null)
+  const [tenantPurposes, setTenantPurposes] = useState(null)
+
+  useEffect(() => {
+    async function loadConfig() {
+      if (!effectiveTenant?.id) return
+      const { data } = await supabase
+        .from('tenants')
+        .select('custom_destinations, custom_purposes')
+        .eq('id', effectiveTenant.id)
+        .single()
+      if (data?.custom_destinations?.length > 0) setTenantDestinations(data.custom_destinations)
+      if (data?.custom_purposes?.length > 0) setTenantPurposes(data.custom_purposes)
+    }
+    loadConfig()
+  }, [effectiveTenant?.id])
+
+  const activeDestinations = tenantDestinations || DESTINATIONS
+  const activePurposes = tenantPurposes || PURPOSES
+
+
   // Attach camera stream after video element renders
   useEffect(() => {
     if (cameraOpen && videoRef.current && streamRef.current) {
@@ -337,14 +359,14 @@ export default function AdmitPage({ gateData, tenantData }) {
             <label>Destination *</label>
             <select value={destination} onChange={e => setDestination(e.target.value)}>
               <option value="">Select destination…</option>
-              {DESTINATIONS.map(d => <option key={d}>{d}</option>)}
+              {activeDestinations.map(d => <option key={d}>{d}</option>)}
             </select>
           </div>
           <div className="field">
             <label>Purpose *</label>
             <select value={purpose} onChange={e => setPurpose(e.target.value)}>
               <option value="">Select purpose…</option>
-              {PURPOSES.map(p => <option key={p}>{p}</option>)}
+              {activePurposes.map(p => <option key={p}>{p}</option>)}
             </select>
           </div>
           {type === 'vehicle' && <div className="field"><label>Occupants</label><input type="number" min="1" max="20" value={occupants} onChange={e => setOccupants(e.target.value)} /></div>}
