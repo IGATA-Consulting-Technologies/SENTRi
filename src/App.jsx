@@ -8,6 +8,7 @@ import CommandLogin from './pages/auth/CommandLogin'
 import ResetPassword from './pages/auth/ResetPassword'
 import OnboardingWizard from './pages/auth/OnboardingWizard'
 import NotFound from './pages/NotFound'
+import PWAInstallPrompt from './components/PWAInstallPrompt'
 
 function GateRoute() {
   const { tenantSlug, gateSlug } = useParams()
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <PWAInstallPrompt />
     </BrowserRouter>
   )
 }
