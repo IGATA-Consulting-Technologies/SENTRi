@@ -39,7 +39,7 @@ export const useAuthStore = create(
           return { success: false }
         }
         set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true, authLoading: false, authError: null })
-        return { success: true, role: officerData.role }
+        return { success: true, role: officerData.role, tenantId: officerData.tenant_id }
       },
 
       logout: async () => {

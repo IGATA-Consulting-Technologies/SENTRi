@@ -25,7 +25,22 @@ export default function CommandLogin() {
     e.preventDefault()
     const result = await login(email.trim(), password)
     if (result?.success) {
-      navigate(result.role === 'admin' ? '/admin' : '/command')
+      if (result.role === 'admin') { navigate('/admin'); return }
+      // Check if onboarding is complete
+      try {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('onboarding_complete')
+          .eq('id', result.tenantId)
+          .single()
+        if (tenantData && !tenantData.onboarding_complete) {
+          navigate('/onboarding')
+        } else {
+          navigate('/command')
+        }
+      } catch (e) {
+        navigate('/command')
+      }
     }
   }
 

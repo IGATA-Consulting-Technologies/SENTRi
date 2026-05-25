@@ -95,6 +95,11 @@ export default function OnboardingWizard() {
     setSaving(false); setStep(5)
   }
 
+  async function skip() {
+    await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenant.id)
+    navigate('/command')
+  }
+
   const progress = (step / 5) * 100
 
   return (
@@ -108,6 +113,9 @@ export default function OnboardingWizard() {
           </div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '700', marginBottom: '4px' }}>Welcome to SENTRi</h1>
           <p style={{ fontSize: '13px', color: 'var(--text-2)' }}>Let's set up your installation. Takes about 3 minutes.</p>
+          <button onClick={skip} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: '12px', cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: '600', marginTop: '8px', textDecoration: 'underline' }}>
+            Skip setup for now
+          </button>
         </div>
 
         {/* Progress */}
