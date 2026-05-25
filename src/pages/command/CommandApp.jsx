@@ -12,6 +12,7 @@ const TABS = [
   { key: 'watchlist', label: 'Watchlist' },
   { key: 'alerts', label: 'Alerts' },
   { key: 'incidents', label: 'Incidents' },
+  { key: 'intelligence', label: 'Intelligence' },
   { key: 'report', label: 'Report' },
   { key: 'gates', label: 'Gates' },
   { key: 'profile', label: 'Profile' },
@@ -49,6 +50,7 @@ export default function CommandApp() {
       case 'watchlist': return <WatchlistTab />
       case 'alerts': return <AlertsTab onUnreadChange={setAlertCount} />
       case 'incidents': return <IncidentsTab onCountChange={fetchCounts} />
+      case 'intelligence': return <IntelligenceTab />
       case 'report': return <ReportTab />
       case 'gates': return <GatesTab />
       case 'profile': return <ProfileTab />
