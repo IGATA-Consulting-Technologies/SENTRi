@@ -66,6 +66,29 @@ function generateReportHTML(data, tenantName, periodLabel) {
     </tr>
   `).join('')
 
+  // Flag alerts summary for PDF
+  const flagSummaryHTML = data.flagTotal > 0 ? `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Watchlist Alerts</h2>
+    <div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:36px;">
+      <div style="font-size:24px;font-weight:700;color:#c0132a;margin-bottom:4px;">${data.flagTotal}</div>
+      <div style="font-size:12px;color:#6b7280;">Flag alert(s) triggered in this period${data.flagUnack > 0 ? ' — <strong style=\"color:#c0132a;\">' + data.flagUnack + ' unacknowledged</strong>' : ' — all acknowledged'}</div>
+    </div>
+  ` : `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Watchlist Alerts</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:36px;">No watchlist alerts in this period.</p>
+  `
+
+  const incSummaryHTML = data.incidents > 0 ? `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Incident Summary</h2>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-bottom:36px;display:flex;gap:24px;">
+      <div><div style="font-size:24px;font-weight:700;color:#92530a;">${data.incidents}</div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Total</div></div>
+      <div><div style="font-size:24px;font-weight:700;color:#c0132a;">${data.criticalIncidents}</div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Critical</div></div>
+    </div>
+  ` : `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Incident Summary</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:36px;">No incidents reported in this period.</p>
+  `
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -239,7 +262,10 @@ export default function ReportTab() {
       byGate: Object.values(byGate),
       incidents: incidents.length,
       criticalIncidents: incidents.filter(i => i.severity === 'critical').length,
-      repeatVisitors: repRes.data || []
+      repeatVisitors: repRes.data || [],
+      flagAlerts: flagRes.data || [],
+      flagTotal: (flagRes.data || []).length,
+      flagUnack: (flagRes.data || []).filter(f => !f.acknowledged).length,
     })
     setLoading(false)
   }

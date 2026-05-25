@@ -151,6 +151,46 @@ function generateBriefHTML(intel, tenantName) {
     ${intel.ops.notesCount > 0 ? `<p style="font-size:13px;color:#374151;line-height:1.7;">Guards added notes to <strong>${intel.ops.notesCount} entries</strong>, indicating manually flagged situations beyond the standard log.</p>` : ''}
   `
 
+
+  // Flag alerts section for PDF
+  const flagSection = intel.flagAlerts && intel.flagAlerts.length > 0 ? `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
+      Watchlist Alerts
+    </h2>
+    <div style="margin-bottom:36px;">
+      <p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">
+        <strong>${intel.flagAlerts.length} flag alert(s)</strong> were triggered in this period.
+        ${intel.flagAlerts.filter(f => !f.acknowledged).length > 0 ? '<strong style="color:#c0132a;">' + intel.flagAlerts.filter(f => !f.acknowledged).length + ' remain unacknowledged.</strong>' : 'All have been acknowledged.'}
+      </p>
+    </div>
+  ` : '<p style="font-size:13px;color:#6b7280;margin-bottom:36px;">No watchlist alerts in this period.</p>'
+
+  const incSection = intel.incidents && intel.incidents.length > 0 ? `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
+      Incidents Summary
+    </h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+      <thead><tr style="background:#f8f9fb;">
+        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Type</th>
+        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Severity</th>
+        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Status</th>
+        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Date</th>
+        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Gate</th>
+      </tr></thead>
+      <tbody>
+        ${intel.incidents.map(inc => `
+          <tr>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${inc.type.replace(/_/g,' ')}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;color:${inc.severity === 'critical' ? '#c0132a' : inc.severity === 'serious' ? '#92530a' : '#1a56db'};font-weight:600;">${inc.severity}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${inc.status}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${new Date(inc.created_at).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${inc.gates?.name || '—'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : ''
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -274,7 +314,7 @@ export default function IntelligenceTab() {
     setLoading(true)
     const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
 
-    const [movRes, repRes] = await Promise.all([
+    const [movRes, repRes, flagRes, incRes] = await Promise.all([
       supabase.from('movements')
         .select('id,type,plate_number,visitor_name,id_number,destination,purpose,occupants,notes,entry_time,exit_time,duration_minutes,flag_triggered,ocr_confidence,gate_id,gates(name)')
         .eq('tenant_id', tenant.id)
@@ -284,11 +324,23 @@ export default function IntelligenceTab() {
         .select('*')
         .eq('tenant_id', tenant.id)
         .order('visit_count', { ascending: false })
-        .limit(20)
+        .limit(20),
+      supabase.from('flag_alerts')
+        .select('*')
+        .eq('tenant_id', tenant.id)
+        .gte('alerted_at', since90)
+        .order('alerted_at', { ascending: false }),
+      supabase.from('incidents')
+        .select('id,type,severity,status,description,created_at,gates(name)')
+        .eq('tenant_id', tenant.id)
+        .gte('created_at', since90)
+        .order('created_at', { ascending: false })
     ])
 
     const movements = movRes.data || []
     const repeatVisitors = repRes.data || []
+    const flagAlerts = flagRes.data || []
+    const incidents = incRes.data || []
 
     if (movements.length === 0) {
       setIntel({ empty: true })
@@ -454,6 +506,29 @@ export default function IntelligenceTab() {
       })
     }
 
+    // Flag alert anomalies
+    const unacknowledged = flagAlerts.filter(f => !f.acknowledged)
+    if (flagAlerts.length > 0) {
+      anomalies.unshift({
+        level: unacknowledged.length > 0 ? 'critical' : 'warning',
+        title: flagAlerts.length + ' watchlist hit' + (flagAlerts.length === 1 ? '' : 's') + ' in this period' + (unacknowledged.length > 0 ? ' — ' + unacknowledged.length + ' unacknowledged' : ' — all acknowledged'),
+        body: 'Flagged vehicles or persons were detected attempting entry. Review the Alerts tab for full details.',
+        meta: 'Most recent: ' + new Date(flagAlerts[0].alerted_at).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      })
+    }
+
+    // Incident anomalies
+    const openInc = incidents.filter(i => i.status === 'open')
+    const criticalInc = incidents.filter(i => i.severity === 'critical')
+    if (incidents.length > 0) {
+      anomalies.unshift({
+        level: criticalInc.length > 0 ? 'critical' : openInc.length > 0 ? 'warning' : 'info',
+        title: incidents.length + ' incident' + (incidents.length === 1 ? '' : 's') + ' reported' + (openInc.length > 0 ? ' — ' + openInc.length + ' still open' : ' — all resolved or acknowledged'),
+        body: criticalInc.length > 0 ? criticalInc.length + ' critical incident(s) recorded in this period. Immediate review required.' : 'Incidents have been logged by gate officers. Review the Incidents tab for full details.',
+        meta: 'Most recent: ' + new Date(incidents[0].created_at).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      })
+    }
+
     if (anomalies.length === 0) {
       anomalies.push({
         level: 'ok',
@@ -478,6 +553,8 @@ export default function IntelligenceTab() {
     setIntel({
       empty: false,
       anomalies,
+      flagAlerts,
+      incidents,
       byHour,
       byDow: dowMap,
       summary: {

@@ -12,10 +12,10 @@ const TABS = [
   { key: 'watchlist', label: 'Watchlist' },
   { key: 'alerts', label: 'Alerts' },
   { key: 'incidents', label: 'Incidents' },
-  { key: 'intelligence', label: 'Intelligence' },
   { key: 'report', label: 'Report' },
   { key: 'gates', label: 'Gates' },
   { key: 'profile', label: 'Profile' },
+  { key: 'intelligence', label: 'Intelligence' },
 ]
 
 export default function CommandApp() {
@@ -84,8 +84,9 @@ export default function CommandApp() {
             onClick={() => setActiveTab(tab.key)}
             style={{
               padding: '6px 12px', borderRadius: '6px', border: 'none',
-              background: activeTab === tab.key ? 'var(--accent)' : 'transparent',
-              color: activeTab === tab.key ? 'white' : 'var(--text-1)',
+              background: activeTab === tab.key ? (tab.key === 'intelligence' ? '#0a0f1e' : 'var(--accent)') : tab.key === 'intelligence' ? 'rgba(10,15,30,0.06)' : 'transparent',
+              color: activeTab === tab.key ? 'white' : tab.key === 'intelligence' ? '#0a0f1e' : 'var(--text-1)',
+              fontWeight: tab.key === 'intelligence' ? 700 : 500,
               fontFamily: 'var(--font-body)', fontSize: '13px', fontWeight: 500,
               cursor: 'pointer', whiteSpace: 'nowrap', position: 'relative',
               flexShrink: 0
