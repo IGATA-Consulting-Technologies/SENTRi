@@ -35,10 +35,10 @@ export default function OnboardingWizard() {
   const [error, setError] = useState('')
 
   // Step 1 — Installation details
-  const [sector, setSector] = useState(tenant?.sector || 'military')
-  const [branch, setBranch] = useState(tenant?.branch || '')
-  const [city, setCity] = useState(tenant?.city || '')
-  const [state, setState] = useState(tenant?.state || '')
+  const [sector, setSector] = useState('military')
+  const [branch, setBranch] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
 
   // Step 2 — Gates
   const [gates, setGates] = useState([{ name: '', location: '' }])
@@ -96,7 +96,9 @@ export default function OnboardingWizard() {
   }
 
   async function skip() {
-    await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenant.id)
+    try {
+      await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenant.id)
+    } catch (e) { console.error('Skip save error:', e) }
     navigate('/command')
   }
 

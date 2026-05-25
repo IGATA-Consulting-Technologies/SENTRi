@@ -13,13 +13,18 @@ export const useAuthStore = create(
       isOnline: navigator.onLine,
 
       restoreSession: async () => {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { set({ isAuthenticated: false, officer: null, tenant: null }); return }
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (!session) { set({ isAuthenticated: false, officer: null, tenant: null }); return }
         const { data: officerData } = await supabase
           .from('officers').select('*, tenants(*)')
           .eq('id', session.user.id).eq('is_active', true).single()
         if (!officerData) { set({ isAuthenticated: false, officer: null, tenant: null }); return }
-        set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true })
+          set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true })
+        } catch (e) {
+          console.error('Session restore error:', e)
+          set({ isAuthenticated: false, officer: null, tenant: null })
+        }
       },
 
       login: async (email, password) => {

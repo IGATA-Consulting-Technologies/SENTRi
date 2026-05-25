@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuthStore, useGuardStore } from './store'
+import { supabase } from './lib/supabase'
 import GateApp from './pages/gate/GateApp'
 import CommandApp from './pages/command/CommandApp'
 import AdminApp from './pages/admin/AdminApp'

@@ -23,7 +23,18 @@ export default function CommandLogin() {
 
   async function handleLogin(e) {
     e.preventDefault()
-    const result = await login(email.trim(), password)
+    // Add 10-second timeout to prevent infinite spinner
+    let result
+    try {
+      const loginPromise = login(email.trim(), password)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Login timed out. Please try again.')), 10000)
+      )
+      result = await Promise.race([loginPromise, timeoutPromise])
+    } catch (err) {
+      console.error('Login error:', err)
+      return
+    }
     if (result?.success) {
       if (result.role === 'admin') { navigate('/admin'); return }
       // Check if onboarding is complete
