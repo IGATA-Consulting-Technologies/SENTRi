@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store'
 import { supabase } from '../../lib/supabase'
 import { LiveTab, WatchlistTab, AlertsTab, ProfileTab } from './tabs'
 import IncidentsTab from './IncidentsTab'
+import IntelligenceTab from './IntelligenceTab'
 import ReportTab from './ReportTab'
 import GatesTab from './GatesTab'
 
