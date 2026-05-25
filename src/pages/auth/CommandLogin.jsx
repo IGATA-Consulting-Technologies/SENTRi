@@ -41,10 +41,12 @@ export default function CommandLogin() {
       try {
         const { data: tenantData } = await supabase
           .from('tenants')
-          .select('onboarding_complete')
+          .select('onboarding_complete, is_active')
           .eq('id', result.tenantId)
           .single()
-        if (tenantData && !tenantData.onboarding_complete) {
+        if (tenantData && !tenantData.is_active) {
+          navigate('/pending')
+        } else if (tenantData && !tenantData.onboarding_complete) {
           navigate('/onboarding')
         } else {
           navigate('/command')
@@ -98,7 +100,7 @@ export default function CommandLogin() {
         name: installationName.trim(),
         slug: tenantSlug,
         sector: 'military',
-        is_active: true,
+        is_active: false,
         custom_destinations: [],
         custom_purposes: []
       })

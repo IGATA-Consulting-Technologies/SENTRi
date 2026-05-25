@@ -1,4 +1,10 @@
-import { useState, useEffect } from 'react'
+// SENTRi — Complete Superadmin Rebuild + Approval Flow
+// Run with: node --input-type=commonjs < superadmin_build.js
+
+const fs = require('fs')
+const { execSync } = require('child_process')
+
+const adminApp = `import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
 const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET || 'IGATASentri@Admin2024'
@@ -187,16 +193,16 @@ function TenantsTab() {
     // Send activation email
     if (t.contact_email) {
       await sendAdminEmail(t.contact_email, 'Your SENTRi account is now active — ' + t.name,
-        `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        \`<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
         <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
           <div style="background:#0e7c3a;padding:28px;"><div style="color:white;font-size:20px;font-weight:800;letter-spacing:0.08em;">🛡️ SENTRi</div><div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px;">Account Activated</div></div>
           <div style="padding:28px;">
-            <h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#1a1a2e;">Welcome to SENTRi, ${t.name}!</h2>
+            <h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#1a1a2e;">Welcome to SENTRi, \${t.name}!</h2>
             <p style="font-size:14px;color:#6b7280;margin-bottom:20px;">Your SENTRi command account has been activated. You can now sign in and begin setting up your installation.</p>
             <a href="https://sentri-igata.netlify.app/login" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Sign in to SENTRi →</a>
           </div>
           <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;"><span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span><span style="font-size:11px;color:#9ca3af;">SENTRi Intelligence</span></div>
-        </div></body></html>`
+        </div></body></html>\`
       )
     }
     load()
@@ -478,17 +484,17 @@ function RequestsTab() {
     if (officer?.email) {
       await sendAdminEmail(officer.email,
         'Your SENTRi account is now active — ' + t.name,
-        `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        \`<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
         <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
           <div style="background:#0e7c3a;padding:28px;"><div style="color:white;font-size:20px;font-weight:800;">🛡️ SENTRi</div><div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px;">Account Activated</div></div>
           <div style="padding:28px;">
             <h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#1a1a2e;">Welcome to SENTRi!</h2>
-            <p style="font-size:14px;color:#6b7280;margin-bottom:8px;">Hello ${officer.rank || ''} ${officer.name},</p>
-            <p style="font-size:14px;color:#6b7280;margin-bottom:20px;">Your SENTRi command account for <strong>${t.name}</strong> has been activated. Sign in to complete your setup.</p>
+            <p style="font-size:14px;color:#6b7280;margin-bottom:8px;">Hello \${officer.rank || ''} \${officer.name},</p>
+            <p style="font-size:14px;color:#6b7280;margin-bottom:20px;">Your SENTRi command account for <strong>\${t.name}</strong> has been activated. Sign in to complete your setup.</p>
             <a href="https://sentri-igata.netlify.app/login" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Sign in to SENTRi →</a>
           </div>
           <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;"><span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span><span style="font-size:11px;color:#9ca3af;">SENTRi Intelligence</span></div>
-        </div></body></html>`
+        </div></body></html>\`
       )
     }
     setActivating(null)
@@ -770,3 +776,144 @@ export default function AdminApp() {
     </div>
   )
 }
+`
+
+// ── UPDATE Registration to create is_active: false ────────────────────────────
+let login = fs.readFileSync('src/pages/auth/CommandLogin.jsx', 'utf8')
+if (login.includes("is_active: true,\n        custom_destinations")) {
+  login = login.replace(
+    "is_active: true,\n        custom_destinations",
+    "is_active: false,\n        custom_destinations"
+  )
+  console.log('✓ Registration: new tenants created as is_active: false')
+} else if (login.includes('is_active: true')) {
+  login = login.replace('is_active: true', 'is_active: false')
+  console.log('✓ Registration: new tenants created as is_active: false (fallback)')
+}
+
+// Add pending screen after login check
+const oldOnboardingCheck = `      try {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('onboarding_complete')
+          .eq('id', result.tenantId)
+          .single()
+        if (tenantData && !tenantData.onboarding_complete) {
+          navigate('/onboarding')
+        } else {
+          navigate('/command')
+        }
+      } catch (e) {
+        navigate('/command')
+      }`
+
+const newOnboardingCheck = `      try {
+        const { data: tenantData } = await supabase
+          .from('tenants')
+          .select('onboarding_complete, is_active')
+          .eq('id', result.tenantId)
+          .single()
+        if (tenantData && !tenantData.is_active) {
+          navigate('/pending')
+        } else if (tenantData && !tenantData.onboarding_complete) {
+          navigate('/onboarding')
+        } else {
+          navigate('/command')
+        }
+      } catch (e) {
+        navigate('/command')
+      }`
+
+login = login.replace(oldOnboardingCheck, newOnboardingCheck)
+fs.writeFileSync('src/pages/auth/CommandLogin.jsx', login, 'utf8')
+console.log('✓ Login: redirects to /pending if account not yet activated')
+
+// ── CREATE Pending Activation Page ───────────────────────────────────────────
+const pendingPage = `import { useAuthStore } from '../../store'
+
+export default function PendingActivation() {
+  const { logout } = useAuthStore()
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'linear-gradient(160deg, #e8f0fe 0%, #f0f2f5 60%)' }}>
+      <div style={{ width: '100%', maxWidth: '420px', textAlign: 'center' }} className="fade-up">
+        <div style={{ width: '72px', height: '72px', background: 'var(--amber-dim)', border: '2px solid var(--amber)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '24px', fontWeight: '700', marginBottom: '8px' }}>Account Pending</h1>
+        <p style={{ fontSize: '14px', color: 'var(--text-2)', lineHeight: '1.6', marginBottom: '8px' }}>
+          Your SENTRi account has been created and is pending activation by the IGATA Technologies team.
+        </p>
+        <p style={{ fontSize: '14px', color: 'var(--text-2)', lineHeight: '1.6', marginBottom: '28px' }}>
+          You will receive an email confirmation once your account is active. This typically happens within 24 hours.
+        </p>
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '16px 20px', marginBottom: '20px', textAlign: 'left' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '4px', fontFamily: 'var(--font-display)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Need help?</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-1)' }}>Contact IGATA Technologies to expedite your activation or for any queries.</div>
+        </div>
+        <button onClick={logout} style={{ background: 'none', border: 'none', color: 'var(--text-2)', fontSize: '13px', cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: '600' }}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  )
+}
+`
+
+fs.mkdirSync('src/pages/auth', { recursive: true })
+fs.writeFileSync('src/pages/auth/PendingActivation.jsx', pendingPage, 'utf8')
+console.log('✓ PendingActivation.jsx created')
+
+// ── UPDATE App.jsx — add /pending route ───────────────────────────────────────
+let app = fs.readFileSync('src/App.jsx', 'utf8')
+if (!app.includes('PendingActivation')) {
+  app = app.replace(
+    "import OnboardingWizard from './pages/auth/OnboardingWizard'",
+    "import OnboardingWizard from './pages/auth/OnboardingWizard'\nimport PendingActivation from './pages/auth/PendingActivation'"
+  )
+  app = app.replace(
+    "        <Route path=\"/onboarding\" element={<OnboardingRoute />} />",
+    "        <Route path=\"/onboarding\" element={<OnboardingRoute />} />\n        <Route path=\"/pending\" element={<PendingActivation />} />"
+  )
+  fs.writeFileSync('src/App.jsx', app, 'utf8')
+  console.log('✓ App.jsx: /pending route added')
+}
+
+// ── WRITE AdminApp ────────────────────────────────────────────────────────────
+fs.writeFileSync('src/pages/admin/AdminApp.jsx', adminApp, 'utf8')
+console.log('✓ AdminApp.jsx — complete rebuild written')
+
+// ── VERIFY ────────────────────────────────────────────────────────────────────
+const adminContent = fs.readFileSync('src/pages/admin/AdminApp.jsx', 'utf8')
+const loginContent = fs.readFileSync('src/pages/auth/CommandLogin.jsx', 'utf8')
+const appContent = fs.readFileSync('src/App.jsx', 'utf8')
+
+const checks = {
+  'Admin: premium login screen': adminContent.includes('LoginScreen'),
+  'Admin: overview with live feed': adminContent.includes('Live Feed'),
+  'Admin: requests tab': adminContent.includes('RequestsTab'),
+  'Admin: tenant profile drill-down': adminContent.includes('TenantProfile'),
+  'Admin: activate sends email': adminContent.includes('Account Activated'),
+  'Admin: plan management': adminContent.includes('PLANS'),
+  'Admin: pending badge on nav': adminContent.includes('pendingCount'),
+  'Admin: officers search': adminContent.includes('search.toLowerCase()'),
+  'Admin: settings with pricing': adminContent.includes('₦150,000'),
+  'Login: new tenants inactive': loginContent.includes('is_active: false'),
+  'Login: redirects to /pending': loginContent.includes("navigate('/pending')"),
+  'App: /pending route': appContent.includes('/pending'),
+}
+
+let allPass = true
+Object.entries(checks).forEach(([k, v]) => {
+  console.log((v ? '✓' : '✗') + ' ' + k)
+  if (!v) allPass = false
+})
+
+if (!allPass) { console.log('\nSome checks failed'); process.exit(1) }
+
+console.log('\nAll checks passed. Pushing...')
+execSync('git add -A', { stdio: 'inherit' })
+execSync('git commit -m "Complete superadmin rebuild + approval-based registration flow"', { stdio: 'inherit' })
+execSync('git push origin main', { stdio: 'inherit' })
+console.log('\n✓ Done. Netlify deploying in ~30 seconds.')
+console.log('\nSuperadmin: sentri-igata.netlify.app/admin → IGATASentri@Admin2024')
+console.log('New registrations now require your activation before access.')

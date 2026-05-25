@@ -8,6 +8,7 @@ import AdminApp from './pages/admin/AdminApp'
 import CommandLogin from './pages/auth/CommandLogin'
 import ResetPassword from './pages/auth/ResetPassword'
 import OnboardingWizard from './pages/auth/OnboardingWizard'
+import PendingActivation from './pages/auth/PendingActivation'
 import NotFound from './pages/NotFound'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/login" element={<CommandLogin />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/onboarding" element={<OnboardingRoute />} />
+        <Route path="/pending" element={<PendingActivation />} />
         <Route path="/admin/*" element={<AdminRoute />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />
