@@ -290,47 +290,149 @@ export function ReportTab() {
   )
 }
 
-// GatesTab.jsx - Shows gate URLs for this installation
+// GatesTab.jsx — Gate management with create form
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store'
+
 export function GatesTab() {
   const { tenant } = useAuthStore()
   const [gates, setGates] = useState([])
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [newGateName, setNewGateName] = useState('')
+  const [newGateLocation, setNewGateLocation] = useState('')
+  const [formError, setFormError] = useState('')
   const appUrl = import.meta.env.VITE_APP_URL || window.location.origin
 
   useEffect(() => { if (tenant?.id) load() }, [tenant])
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from('gates').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
-    setGates(data || []); setLoading(false)
+    const { data } = await supabase.from('gates').select('*')
+      .eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
+    setGates(data || [])
+    setLoading(false)
+  }
+
+  async function createGate() {
+    setFormError('')
+    if (!newGateName.trim()) { setFormError('Gate name is required'); return }
+    setCreating(true)
+    const slug = newGateName.trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
+      + '-' + Math.random().toString(36).slice(2, 6)
+
+    const { error } = await supabase.from('gates').insert({
+      tenant_id: tenant.id,
+      name: newGateName.trim(),
+      slug,
+      location: newGateLocation.trim() || null,
+      is_active: true
+    })
+
+    setCreating(false)
+    if (error) { setFormError('Failed to create gate: ' + error.message); return }
+    setNewGateName('')
+    setNewGateLocation('')
+    setShowForm(false)
+    load()
   }
 
   function copyUrl(gate) {
-    const url = `${appUrl}/gate/${tenant.slug}/${gate.slug}`
+    const url = appUrl + '/gate/' + tenant.slug + '/' + gate.slug
     navigator.clipboard.writeText(url)
     setCopied(gate.id)
     setTimeout(() => setCopied(null), 2000)
   }
 
-  const appUrl2 = import.meta.env.VITE_APP_URL || window.location.origin
+  async function deactivateGate(id) {
+    await supabase.from('gates').update({ is_active: false }).eq('id', id)
+    setGates(prev => prev.filter(g => g.id !== id))
+  }
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Gate URLs</h2>
-      <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '6px' }}>Each gate has a unique URL. Send it to the device at that gate. Guards open it and install as a PWA.</p>
-      <div className="alert alert-info" style={{ marginBottom: '20px' }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Copy the URL and send via WhatsApp or SMS to the guard's phone. They open it in Chrome and tap "Add to home screen."
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Gate URLs</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-2)' }}>
+            Each gate has a unique URL. Send to the guard's device via WhatsApp.
+          </p>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => { setShowForm(s => !s); setFormError('') }}
+          style={{ flexShrink: 0, marginLeft: '12px' }}>
+          {showForm ? 'Cancel' : '+ New gate'}
+        </button>
       </div>
-      {loading ? <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading…</div>
-        : gates.map(gate => {
-          const url = `${appUrl2}/gate/${tenant?.slug}/${gate.slug}`
+
+      {/* Create Gate Form */}
+      {showForm && (
+        <div className="card fade-up" style={{ marginBottom: '20px', border: '1.5px solid var(--accent)' }}>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '15px', marginBottom: '14px', color: 'var(--accent)' }}>
+            Create new gate
+          </div>
+          <div className="field-row" style={{ marginBottom: '12px' }}>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Gate name *</label>
+              <input type="text" placeholder="e.g. Maryland Gate"
+                value={newGateName} onChange={e => { setNewGateName(e.target.value); setFormError('') }} />
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label>Location (optional)</label>
+              <input type="text" placeholder="e.g. North entrance"
+                value={newGateLocation} onChange={e => setNewGateLocation(e.target.value)} />
+            </div>
+          </div>
+          {formError && (
+            <div className="alert alert-danger" style={{ marginBottom: '12px' }}>{formError}</div>
+          )}
+          <button className="btn btn-primary btn-full" onClick={createGate} disabled={creating || !newGateName.trim()}>
+            {creating ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Creating...</> : 'Create gate'}
+          </button>
+        </div>
+      )}
+
+      {/* Info banner */}
+      <div className="alert alert-info" style={{ marginBottom: '20px' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Copy each URL and send via WhatsApp to the guard's phone. They open it in Chrome and tap "Add to home screen."
+      </div>
+
+      {/* Gates list */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>Loading...</div>
+      ) : gates.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-2)' }}>
+          <div style={{ fontSize: '36px', marginBottom: '12px' }}>🚪</div>
+          <p style={{ fontSize: '14px', marginBottom: '16px' }}>No gates yet. Create your first gate above.</p>
+        </div>
+      ) : (
+        gates.map(gate => {
+          const url = appUrl + '/gate/' + tenant?.slug + '/' + gate.slug
           return (
-            <div key={gate.id} className="card" style={{ marginBottom: '10px', padding: '16px 18px' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '15px', marginBottom: '4px' }}>{gate.name}</div>
-              {gate.location && <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '10px' }}>{gate.location}</div>}
-              <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border-med)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-1)', marginBottom: '10px', wordBreak: 'break-all' }}>
+            <div key={gate.id} className="card" style={{ marginBottom: '12px', padding: '16px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '15px', marginBottom: '2px' }}>
+                    {gate.name}
+                  </div>
+                  {gate.location && (
+                    <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>{gate.location}</div>
+                  )}
+                </div>
+                <button onClick={() => deactivateGate(gate.id)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '12px', fontFamily: 'var(--font-display)', fontWeight: '600', padding: '2px 6px' }}>
+                  Remove
+                </button>
+              </div>
+              <div style={{ background: 'var(--bg-2)', border: '1px solid var(--border-med)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent)', marginBottom: '10px', wordBreak: 'break-all', lineHeight: '1.5' }}>
                 {url}
               </div>
               <button className="btn btn-primary btn-sm" onClick={() => copyUrl(gate)}>
@@ -339,10 +441,11 @@ export function GatesTab() {
             </div>
           )
         })
-      }
+      )}
     </div>
   )
 }
+
 
 // ProfileTab.jsx
 export function ProfileTab() {
