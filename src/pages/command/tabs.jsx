@@ -1,7 +1,4 @@
 // LiveTab.jsx
-import { useState, useEffect } from 'react'
-import { supabase } from '../../lib/supabase'
-import { useAuthStore } from '../../store'
 
 function dur(entry) {
   const m = Math.round((Date.now() - new Date(entry)) / 60000)
