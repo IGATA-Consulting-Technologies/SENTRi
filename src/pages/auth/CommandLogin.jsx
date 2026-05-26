@@ -30,15 +30,12 @@ export default function CommandLogin() {
     if (result.newAccount) { navigate('/onboarding'); return }
     if (result.role === 'admin') { navigate('/admin'); return }
 
-    try {
-      const { data: tenantData } = await supabase
-        .from('tenants').select('onboarding_complete, is_active').eq('id', result.tenantId).single()
-      if (tenantData && !tenantData.onboarding_complete) {
-        navigate('/onboarding')
-      } else {
-        navigate('/command')
-      }
-    } catch { navigate('/command') }
+    // Use onboardingComplete from store login result — avoids second RLS-blocked query
+    if (result.onboardingComplete === false) {
+      navigate('/onboarding')
+    } else {
+      navigate('/command')
+    }
   }
 
   async function handleForgotPassword(e) {

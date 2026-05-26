@@ -53,7 +53,8 @@ export const useAuthStore = create(
         }
 
         set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true, authLoading: false, authError: null })
-        return { success: true, role: officerData.role, tenantId: officerData.tenant_id, onboardingComplete: officerData.tenants?.onboarding_complete }
+        const onboardingComplete = officerData.tenants?.onboarding_complete ?? false
+        return { success: true, role: officerData.role, tenantId: officerData.tenant_id, onboardingComplete }
       },
 
       // Called during wizard to populate store as records are created

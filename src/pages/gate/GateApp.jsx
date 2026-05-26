@@ -131,10 +131,10 @@ export default function GateApp() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-0)', overflow: 'hidden' }}>
-      <header style={{ background: 'var(--bg-1)', borderBottom: '1px solid var(--border)', padding: '12px 16px', flexShrink: 0 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: '800', fontSize: '13px', letterSpacing: '0.1em', color: 'var(--accent)', textTransform: 'uppercase' }}>SENTRi</div>
-        <div style={{ fontWeight: '700', fontSize: '15px', color: 'var(--text-0)', marginTop: '1px' }}>{gate?.name}</div>
-        <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>{tenant?.name}</div>
+      <header style={{ background: '#0a2218', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 16px', flexShrink: 0 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: '800', fontSize: '13px', letterSpacing: '0.1em', color: '#4ade80', textTransform: 'uppercase' }}>SENTRi</div>
+        <div style={{ fontWeight: '700', fontSize: '15px', color: 'white', marginTop: '1px' }}>{gate?.name}</div>
+        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{tenant?.name}</div>
       </header>
       <main style={{ flex: 1, overflowY: 'auto' }}>{renderContent()}</main>
       <nav style={{ display: 'flex', background: 'var(--bg-1)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
@@ -144,9 +144,9 @@ export default function GateApp() {
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               padding: '10px 4px 8px', border: 'none', cursor: 'pointer', gap: '3px', fontSize: '10px',
               fontFamily: 'var(--font-display)', fontWeight: '600', letterSpacing: '0.03em', transition: 'all 0.15s',
-              background: activeTab === tab.key ? 'var(--accent-dim)' : 'transparent',
-              color: activeTab === tab.key ? 'var(--accent)' : tab.key === 'incident' ? 'var(--red)' : 'var(--text-2)',
-              borderTop: activeTab === tab.key ? '2px solid var(--accent)' : '2px solid transparent'
+              background: activeTab === tab.key ? 'rgba(14,124,58,0.1)' : 'transparent',
+              color: activeTab === tab.key ? 'var(--green)' : tab.key === 'incident' ? 'var(--red)' : 'var(--text-2)',
+              borderTop: activeTab === tab.key ? '2px solid var(--green)' : '2px solid transparent'
             }}>
             {tab.icon}
             {tab.label}

@@ -187,8 +187,21 @@ export default function OnboardingWizard() {
     }
     // Set all gates at once after loop completes
     setCreatedGates([...created])
-    // Mark onboarding complete and fire notification email
-    await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenantId)
+    // Mark onboarding complete — critical, must succeed before proceeding
+    const { error: completeErr } = await supabase
+      .from('tenants').update({ onboarding_complete: true }).eq('id', tenantId)
+    if (completeErr) {
+      console.error('Failed to mark onboarding complete:', completeErr.message)
+      // Retry once
+      await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenantId)
+    }
+    // Update auth store tenant to reflect completion
+    const { setTenantAndOfficer } = useAuthStore.getState()
+    const currentOfficer = useAuthStore.getState().officer
+    const currentTenant = useAuthStore.getState().tenant
+    if (currentTenant) {
+      setTenantAndOfficer({ ...currentTenant, onboarding_complete: true }, currentOfficer)
+    }
     try {
       await fetch('/.netlify/functions/send-alert-email', {
         method: 'POST',

@@ -382,7 +382,7 @@ export default function AdmitPage({ gateData, tenantData }) {
           </div>
           {type === 'vehicle' && <div className="field"><label>Occupants</label><input type="number" min="1" max="20" value={occupants} onChange={e => setOccupants(e.target.value)} /></div>}
           <div className="field"><label>Notes (optional)</label><input type="text" placeholder="Additional notes" value={notes} onChange={e => setNotes(e.target.value)} /></div>
-          <button className="btn btn-success btn-full btn-lg" onClick={submit} disabled={!destination || !purpose || submitting}>
+          <button className="btn btn-full btn-lg" style={{ background: 'var(--green)', color: 'white', border: 'none' }} onClick={submit} disabled={!destination || !purpose || submitting}>
             {submitting ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Logging...</> : '✓ Admit ' + type}
           </button>
         </div>

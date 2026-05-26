@@ -163,7 +163,7 @@ export default function ShiftStart({ gateData, tenantData }) {
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', padding: '24px',
-      background: 'linear-gradient(160deg, #e8f0fe 0%, #f0f2f5 60%)'
+      background: 'linear-gradient(160deg, #e8f5ee 0%, #f0f5f2 60%)'
     }}>
       <div style={{ width: '100%', maxWidth: '400px' }} className="fade-up">
 
@@ -171,7 +171,7 @@ export default function ShiftStart({ gateData, tenantData }) {
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           {tenantData?.logo_url
             ? <img src={tenantData.logo_url} alt="logo" style={{ width: '60px', height: '60px', borderRadius: '14px', objectFit: 'cover', margin: '0 auto 12px', display: 'block' }} />
-            : <div style={{ width: '60px', height: '60px', background: 'var(--accent)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: '0 4px 20px rgba(26,86,219,0.3)' }}>
+            : <div style={{ width: '60px', height: '60px', background: 'var(--green)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: '0 4px 20px rgba(14,124,58,0.3)' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
@@ -223,7 +223,7 @@ export default function ShiftStart({ gateData, tenantData }) {
 
             {error && <div className="alert alert-warn" style={{ marginBottom: '16px' }}>{error}</div>}
 
-            <button className="btn btn-primary btn-full btn-lg" onClick={verifyIdentity}
+            <button className="btn btn-full btn-lg" style={{ background: 'var(--green)', color: 'white', border: 'none' }} onClick={verifyIdentity}
               disabled={loading || !serviceNumber.trim() || !name.trim()}>
               {loading
                 ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Verifying...</>
@@ -254,7 +254,7 @@ export default function ShiftStart({ gateData, tenantData }) {
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
               <button className="btn btn-ghost" style={{ width: 'auto', padding: '14px 20px' }} onClick={() => setStep(1)}>← Back</button>
-              <button className="btn btn-success btn-lg" style={{ flex: 1 }} onClick={beginShift} disabled={loading}>
+              <button className="btn btn-lg" style={{ flex: 1, background: 'var(--green)', color: 'white', border: 'none' }} onClick={beginShift} disabled={loading}>
                 {loading ? <div className="spinner" style={{ width: '16px', height: '16px' }} /> : '✓ Begin shift'}
               </button>
             </div>
