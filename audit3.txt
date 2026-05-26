@@ -1,0 +1,394 @@
+﻿import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store'
+
+const PERIODS = [
+  { key: 'weekly', label: 'This Week', days: 7 },
+  { key: 'monthly', label: 'This Month', days: 30 },
+  { key: 'quarterly', label: 'This Quarter', days: 90 },
+  { key: 'annually', label: 'This Year', days: 365 },
+]
+
+function generateReportHTML(data, tenantName, periodLabel) {
+  const now = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+
+  const statCards = [
+    { label: 'Total Movements', value: data.total, color: '#1a56db' },
+    { label: 'Vehicles', value: data.vehicles, color: '#1a1a2e' },
+    { label: 'Pedestrians', value: data.pedestrians, color: '#1a1a2e' },
+    { label: 'Flag Hits', value: data.flags, color: data.flags > 0 ? '#c0132a' : '#1a1a2e' },
+    { label: 'Incidents', value: data.incidents, color: data.incidents > 0 ? '#92530a' : '#1a1a2e' },
+    { label: 'Critical Incidents', value: data.criticalIncidents, color: data.criticalIncidents > 0 ? '#c0132a' : '#1a1a2e' },
+    ...(data.avgDuration ? [{ label: 'Avg Stay (min)', value: data.avgDuration, color: '#1a1a2e' }] : [])
+  ].map(s => `
+    <div style="background:#f8f9fb;border:1px solid #e2e6ed;border-radius:8px;padding:16px;text-align:center;">
+      <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">${s.label}</div>
+      <div style="font-size:28px;font-weight:700;color:${s.color};">${s.value}</div>
+    </div>
+  `).join('')
+
+  const gateRows = data.byGate.map(g => `
+    <tr>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;">${g.name}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${g.total}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${g.vehicles}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${g.pedestrians}</td>
+    </tr>
+  `).join('')
+
+  const dayRows = data.byDay.slice(0, 31).map(d => `
+    <tr>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">${new Date(d.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${d.total}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${d.vehicles}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;">${d.pedestrians}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;color:${d.flags > 0 ? '#c0132a' : '#6b7280'};font-weight:${d.flags > 0 ? '700' : '400'};">${d.flags}</td>
+    </tr>
+  `).join('')
+
+  const destRows = data.topDest.map(({ dest, count }) => `
+    <tr>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">${dest}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${count}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">
+        <div style="background:#e2e6ed;border-radius:4px;height:8px;">
+          <div style="background:#1a56db;border-radius:4px;height:8px;width:${Math.round(count / data.topDest[0].count * 100)}%;"></div>
+        </div>
+      </td>
+    </tr>
+  `).join('')
+
+  const repeatRows = data.repeatVisitors.map(v => `
+    <tr>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;font-family:monospace;">${v.plate_number || v.visitor_name || 'â€”'}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:600;">${v.visit_count}</td>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e6ed;">${new Date(v.last_visit).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+    </tr>
+  `).join('')
+
+  // Flag alerts summary for PDF
+  const flagSummaryHTML = data.flagTotal > 0 ? `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Watchlist Alerts</h2>
+    <div style="background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:36px;">
+      <div style="font-size:24px;font-weight:700;color:#c0132a;margin-bottom:4px;">${data.flagTotal}</div>
+      <div style="font-size:12px;color:#6b7280;">Flag alert(s) triggered in this period${data.flagUnack > 0 ? ' â€” <strong style=\"color:#c0132a;\">' + data.flagUnack + ' unacknowledged</strong>' : ' â€” all acknowledged'}</div>
+    </div>
+  ` : `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Watchlist Alerts</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:36px;">No watchlist alerts in this period.</p>
+  `
+
+  const incSummaryHTML = data.incidents > 0 ? `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Incident Summary</h2>
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-bottom:36px;display:flex;gap:24px;">
+      <div><div style="font-size:24px;font-weight:700;color:#92530a;">${data.incidents}</div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Total</div></div>
+      <div><div style="font-size:24px;font-weight:700;color:#c0132a;">${data.criticalIncidents}</div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Critical</div></div>
+    </div>
+  ` : `
+    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;margin-bottom:12px;">Incident Summary</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:36px;">No incidents reported in this period.</p>
+  `
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SENTRi Intelligence Report â€” ${tenantName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: white; }
+    @media print {
+      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      .no-print { display: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body style="padding:0;margin:0;">
+
+  <!-- Cover header -->
+  <div style="background:#1a56db;padding:36px 48px;margin-bottom:0;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="color:white;font-size:28px;font-weight:800;letter-spacing:0.1em;margin-bottom:4px;">SENTRi</div>
+        <div style="color:rgba(255,255,255,0.85);font-size:14px;letter-spacing:0.04em;">MOVEMENT INTELLIGENCE PLATFORM</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="color:rgba(255,255,255,0.7);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Generated</div>
+        <div style="color:white;font-size:13px;font-weight:600;">${now}</div>
+      </div>
+    </div>
+    <div style="margin-top:28px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.2);">
+      <div style="color:rgba(255,255,255,0.7);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Intelligence Report</div>
+      <div style="color:white;font-size:22px;font-weight:700;">${tenantName}</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:14px;margin-top:4px;">${periodLabel} Summary</div>
+    </div>
+  </div>
+
+  <div style="padding:36px 48px;">
+
+    <!-- Stats grid -->
+    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:16px;">Summary Statistics</h2>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:36px;">
+      ${statCards}
+    </div>
+
+    <!-- By Gate -->
+    ${data.byGate.length > 0 ? `
+    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Activity by Gate</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+      <thead>
+        <tr style="background:#f8f9fb;">
+          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Gate</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Total</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Vehicles</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Pedestrians</th>
+        </tr>
+      </thead>
+      <tbody>${gateRows}</tbody>
+    </table>` : ''}
+
+    <!-- Top Destinations -->
+    ${data.topDest.length > 0 ? `
+    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Top Destinations</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+      <thead>
+        <tr style="background:#f8f9fb;">
+          <th style="padding:10px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Destination</th>
+          <th style="padding:10px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Visits</th>
+          <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e2e6ed;">Frequency</th>
+        </tr>
+      </thead>
+      <tbody>${destRows}</tbody>
+    </table>` : ''}
+
+    <!-- Daily Breakdown -->
+    ${data.byDay.length > 0 ? `
+    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Daily Breakdown</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+      <thead>
+        <tr style="background:#f8f9fb;">
+          <th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Date</th>
+          <th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Total</th>
+          <th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Vehicles</th>
+          <th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Pedestrians</th>
+          <th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Flags</th>
+        </tr>
+      </thead>
+      <tbody>${dayRows}</tbody>
+    </table>` : ''}
+
+    <!-- Repeat Visitors -->
+    ${data.repeatVisitors.length > 0 ? `
+    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin-bottom:12px;">Repeat Visitors</h2>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
+      <thead>
+        <tr style="background:#f8f9fb;">
+          <th style="padding:8px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Plate / Name</th>
+          <th style="padding:8px 14px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Visits</th>
+          <th style="padding:8px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Last Visit</th>
+        </tr>
+      </thead>
+      <tbody>${repeatRows}</tbody>
+    </table>` : ''}
+
+  </div>
+
+  <!-- Footer -->
+  <div style="padding:20px 48px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;align-items:center;margin-top:auto;">
+    <span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span>
+    <span style="font-size:11px;color:#9ca3af;">SENTRi Movement Intelligence Platform â€” CONFIDENTIAL</span>
+  </div>
+
+</body>
+</html>`
+}
+
+export default function ReportTab() {
+  const { tenant } = useAuthStore()
+  const [period, setPeriod] = useState('monthly')
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
+
+  useEffect(() => { fetchReport() }, [period])
+
+  async function fetchReport() {
+    setLoading(true)
+    const days = PERIODS.find(p => p.key === period)?.days || 30
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+
+    const [movRes, incRes, repRes] = await Promise.all([
+      supabase.from('movements').select('id,type,entry_time,exit_time,duration_minutes,flag_triggered,destination,gate_id,gates(name)').eq('tenant_id', tenant.id).gte('entry_time', since),
+      supabase.from('incidents').select('id,type,severity,status,created_at').eq('tenant_id', tenant.id).gte('created_at', since),
+      supabase.from('v_repeat_visitors').select('*').eq('tenant_id', tenant.id).order('visit_count', { ascending: false }).limit(10)
+    ])
+
+    const movements = movRes.data || []
+    const incidents = incRes.data || []
+
+    const byDay = {}
+    movements.forEach(m => {
+      const day = m.entry_time.split('T')[0]
+      if (!byDay[day]) byDay[day] = { date: day, total: 0, vehicles: 0, pedestrians: 0, flags: 0 }
+      byDay[day].total++
+      if (m.type === 'vehicle') byDay[day].vehicles++; else byDay[day].pedestrians++
+      if (m.flag_triggered) byDay[day].flags++
+    })
+
+    const destCount = {}
+    movements.forEach(m => { if (m.destination) destCount[m.destination] = (destCount[m.destination] || 0) + 1 })
+    const topDest = Object.entries(destCount).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([dest, count]) => ({ dest, count }))
+
+    const byGate = {}
+    movements.forEach(m => {
+      const name = m.gates?.name || 'Unknown'
+      if (!byGate[name]) byGate[name] = { name, total: 0, vehicles: 0, pedestrians: 0 }
+      byGate[name].total++
+      if (m.type === 'vehicle') byGate[name].vehicles++; else byGate[name].pedestrians++
+    })
+
+    const durMov = movements.filter(m => m.duration_minutes)
+    const avgDuration = durMov.length > 0 ? Math.round(durMov.reduce((s, m) => s + m.duration_minutes, 0) / durMov.length) : null
+
+    setData({
+      total: movements.length,
+      vehicles: movements.filter(m => m.type === 'vehicle').length,
+      pedestrians: movements.filter(m => m.type === 'pedestrian').length,
+      flags: movements.filter(m => m.flag_triggered).length,
+      avgDuration,
+      byDay: Object.values(byDay).sort((a, b) => b.date.localeCompare(a.date)),
+      topDest,
+      byGate: Object.values(byGate),
+      incidents: incidents.length,
+      criticalIncidents: incidents.filter(i => i.severity === 'critical').length,
+      repeatVisitors: repRes.data || [],
+      flagAlerts: flagRes.data || [],
+      flagTotal: (flagRes.data || []).length,
+      flagUnack: (flagRes.data || []).filter(f => !f.acknowledged).length,
+    })
+    setLoading(false)
+  }
+
+  function downloadPDF() {
+    if (!data) return
+    setDownloading(true)
+    const periodLabel = PERIODS.find(p => p.key === period)?.label || period
+    const html = generateReportHTML(data, tenant.name, periodLabel)
+
+    // Open in new window and trigger print dialog (save as PDF)
+    const win = window.open('', '_blank')
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => {
+      win.print()
+      setDownloading(false)
+    }, 500)
+  }
+
+  return (
+    <div className="report-tab">
+      <div className="tab-header">
+        <div>
+          <h2>Intelligence Report</h2>
+          <p className="tab-sub">Movement analytics for {tenant.name}</p>
+        </div>
+      </div>
+      <div className="filter-row">
+        {PERIODS.map(p => (
+          <button key={p.key} className={'filter-btn' + (period === p.key ? ' active' : '')} onClick={() => setPeriod(p.key)}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {data && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={downloadPDF}
+            disabled={downloading || !data}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            {downloading ? 'Preparing...' : 'Download PDF report'}
+          </button>
+        </div>
+      )}
+      {loading ? (
+        <div className="loading-state">Generating report...</div>
+      ) : !data ? null : (
+        <div className="report-content">
+          <div className="stats-grid">
+            <div className="stat-card"><div className="stat-label">Total</div><div className="stat-value">{data.total}</div></div>
+            <div className="stat-card"><div className="stat-label">Vehicles</div><div className="stat-value">{data.vehicles}</div></div>
+            <div className="stat-card"><div className="stat-label">Pedestrians</div><div className="stat-value">{data.pedestrians}</div></div>
+            <div className="stat-card"><div className="stat-label">Flags</div><div className="stat-value">{data.flags}</div></div>
+            <div className="stat-card"><div className="stat-label">Incidents</div><div className="stat-value">{data.incidents}</div></div>
+            <div className="stat-card"><div className="stat-label">Critical</div><div className="stat-value">{data.criticalIncidents}</div></div>
+            {data.avgDuration && <div className="stat-card"><div className="stat-label">Avg Stay</div><div className="stat-value">{data.avgDuration}m</div></div>}
+          </div>
+          {data.byGate.length > 0 && (
+            <div className="report-section">
+              <h3>By Gate</h3>
+              <div className="report-table">
+                <div className="table-header"><span>Gate</span><span>Total</span><span>Vehicles</span><span>Pedestrians</span></div>
+                {data.byGate.map(g => (
+                  <div className="table-row" key={g.name}><span>{g.name}</span><span>{g.total}</span><span>{g.vehicles}</span><span>{g.pedestrians}</span></div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.topDest.length > 0 && (
+            <div className="report-section">
+              <h3>Top Destinations</h3>
+              <div className="dest-list">
+                {data.topDest.map(({ dest, count }) => (
+                  <div className="dest-row" key={dest}>
+                    <span className="dest-name">{dest}</span>
+                    <div className="dest-bar-wrap"><div className="dest-bar" style={{ width: (count / data.topDest[0].count * 100) + '%' }} /></div>
+                    <span className="dest-count">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.byDay.length > 0 && (
+            <div className="report-section">
+              <h3>Daily Breakdown</h3>
+              <div className="report-table">
+                <div className="table-header"><span>Date</span><span>Total</span><span>Vehicles</span><span>Pedestrians</span><span>Flags</span></div>
+                {data.byDay.map(d => (
+                  <div className="table-row" key={d.date}>
+                    <span>{new Date(d.date).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                    <span>{d.total}</span><span>{d.vehicles}</span><span>{d.pedestrians}</span>
+                    <span className={d.flags > 0 ? 'text-red' : ''}>{d.flags}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.repeatVisitors.length > 0 && (
+            <div className="report-section">
+              <h3>Repeat Visitors</h3>
+              <div className="report-table">
+                <div className="table-header"><span>Plate / Name</span><span>Visits</span><span>Last Visit</span></div>
+                {data.repeatVisitors.map((v, i) => (
+                  <div className="table-row" key={i}>
+                    <span>{v.plate_number || v.visitor_name || '--'}</span>
+                    <span>{v.visit_count}</span>
+                    <span>{new Date(v.last_visit).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,13 +1,14 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { useAuthStore, useGuardStore } from './store'
+import { supabase } from './lib/supabase'
 import GateApp from './pages/gate/GateApp'
 import CommandApp from './pages/command/CommandApp'
 import AdminApp from './pages/admin/AdminApp'
 import CommandLogin from './pages/auth/CommandLogin'
-import Register from './pages/auth/Register'
 import ResetPassword from './pages/auth/ResetPassword'
 import OnboardingWizard from './pages/auth/OnboardingWizard'
+import PendingActivation from './pages/auth/PendingActivation'
 import NotFound from './pages/NotFound'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 
@@ -19,7 +20,6 @@ function GateRoute() {
 function CommandRoute() {
   const { isAuthenticated, officer } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (!officer) return <Navigate to="/onboarding" replace />
   if (officer?.role === 'admin') return <Navigate to="/admin" replace />
   return <CommandApp />
 }
@@ -53,9 +53,9 @@ export default function App() {
         <Route path="/gate/:tenantSlug/:gateSlug" element={<GateRoute />} />
         <Route path="/command/*" element={<CommandRoute />} />
         <Route path="/login" element={<CommandLogin />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/onboarding" element={<OnboardingRoute />} />
+        <Route path="/pending" element={<PendingActivation />} />
         <Route path="/admin/*" element={<AdminRoute />} />
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="*" element={<NotFound />} />

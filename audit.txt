@@ -1,10 +1,10 @@
-import { create } from 'zustand'
+﻿import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '../lib/supabase'
 
 export const useAuthStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       officer: null,
       tenant: null,
       isAuthenticated: false,
@@ -16,14 +16,10 @@ export const useAuthStore = create(
         try {
           const { data: { session } } = await supabase.auth.getSession()
           if (!session) { set({ isAuthenticated: false, officer: null, tenant: null }); return }
-          const { data: officerData } = await supabase
-            .from('officers').select('*, tenants(*)')
-            .eq('id', session.user.id).eq('is_active', true).single()
-          if (!officerData) {
-            // Authenticated but no officer record yet — new account in wizard
-            set({ isAuthenticated: true, officer: null, tenant: null })
-            return
-          }
+        const { data: officerData } = await supabase
+          .from('officers').select('*, tenants(*)')
+          .eq('id', session.user.id).eq('is_active', true).single()
+        if (!officerData) { set({ isAuthenticated: false, officer: null, tenant: null }); return }
           set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true })
         } catch (e) {
           console.error('Session restore error:', e)
@@ -34,30 +30,22 @@ export const useAuthStore = create(
       login: async (email, password) => {
         set({ authLoading: true, authError: null })
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
-        if (authError) { set({ authLoading: false, authError: authError.message }); return { success: false } }
-
-        const { data: officerData } = await supabase
+        if (authError) { set({ authLoading: false, authError: authError.message }); return }
+        const { data: officerData, error: officerError } = await supabase
           .from('officers').select('*, tenants(*)')
           .eq('id', authData.user.id).eq('is_active', true).single()
-
-        if (!officerData) {
-          // Valid auth user but no officer profile — send to onboarding
-          set({ isAuthenticated: true, officer: null, tenant: null, authLoading: false, authError: null })
-          return { success: true, newAccount: true }
+        if (officerError || !officerData) {
+          await supabase.auth.signOut()
+          set({ authLoading: false, authError: 'Officer profile not found.' }); return
         }
-
         if (!['command', 'admin'].includes(officerData.role)) {
           await supabase.auth.signOut()
           set({ authLoading: false, authError: 'Insufficient access level.' })
           return { success: false }
         }
-
         set({ officer: officerData, tenant: officerData.tenants, isAuthenticated: true, authLoading: false, authError: null })
-        return { success: true, role: officerData.role, tenantId: officerData.tenant_id, onboardingComplete: officerData.tenants?.onboarding_complete }
+        return { success: true, role: officerData.role, tenantId: officerData.tenant_id }
       },
-
-      // Called during wizard to populate store as records are created
-      setTenantAndOfficer: (tenant, officer) => set({ tenant, officer }),
 
       logout: async () => {
         await supabase.auth.signOut()
@@ -87,14 +75,17 @@ export const useGuardStore = create(
       shiftStart: null,
       shiftLogId: null,
       activeTab: 'admit',
+
       setTenant: (tenant) => set({ tenant }),
       setGate: (gate) => set({ gate }),
       setActiveTab: (tab) => set({ activeTab: tab }),
       setOnline: (val) => set({ isOnline: val }),
+
       startShift: (guard, gate, tenant, shiftLogId) => set({
         onShift: true, guard, gate, tenant, shiftLogId,
         shiftStart: new Date().toISOString(), activeTab: 'admit',
       }),
+
       endShift: () => set({
         onShift: false, guard: null, shiftLogId: null, shiftStart: null, activeTab: 'admit',
       }),

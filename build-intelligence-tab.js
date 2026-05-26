@@ -1,4 +1,14 @@
-import { useState, useEffect } from 'react'
+const { execSync } = require('child_process')
+const fs = require('fs')
+const path = require('path')
+
+console.log('SENTRi — Build Intelligence Tab')
+console.log('='.repeat(52))
+
+// ── 1. Create IntelligenceTab.jsx ──
+const intelligencePath = path.join(process.cwd(), 'src', 'pages', 'command', 'IntelligenceTab.jsx')
+
+const intelligenceContent = `import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store'
 
@@ -106,96 +116,56 @@ function generateBriefHTML(intel, tenantName) {
 
   const anomalySection = intel.anomalies.length === 0
     ? '<p style="color:#6b7280;font-size:13px;">No significant anomalies detected in the analysis period.</p>'
-    : intel.anomalies.map(a => `
-      <div style="margin-bottom:12px;padding:12px 16px;border-left:3px solid ${a.level === 'critical' ? '#c0132a' : a.level === 'warning' ? '#92530a' : '#1a56db'};background:#f8f9fb;border-radius:0 6px 6px 0;">
-        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">${a.title}</div>
-        <div style="font-size:12px;color:#6b7280;">${a.body}</div>
-        ${a.meta ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;font-family:monospace;">${a.meta}</div>` : ''}
+    : intel.anomalies.map(a => \`
+      <div style="margin-bottom:12px;padding:12px 16px;border-left:3px solid \${a.level === 'critical' ? '#c0132a' : a.level === 'warning' ? '#92530a' : '#1a56db'};background:#f8f9fb;border-radius:0 6px 6px 0;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">\${a.title}</div>
+        <div style="font-size:12px;color:#6b7280;">\${a.body}</div>
+        \${a.meta ? \`<div style="font-size:11px;color:#9ca3af;margin-top:4px;font-family:monospace;">\${a.meta}</div>\` : ''}
       </div>
-    `).join('')
+    \`).join('')
 
-  const patternSection = `
+  const patternSection = \`
     <p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">
-      Over the analysis period, <strong>${tenantName}</strong> recorded <strong>${intel.summary.total} total movements</strong>
-      across ${intel.summary.days} active days, averaging <strong>${intel.summary.dailyAvg} movements per day</strong>.
-      ${intel.summary.peakDay ? 'The busiest day of the week is <strong>' + intel.summary.peakDay + '</strong>.' : ''}
-      ${intel.summary.peakHour !== null ? 'Peak activity occurs at <strong>' + hourLabel(intel.summary.peakHour) + '</strong>.' : ''}
+      Over the analysis period, <strong>\${tenantName}</strong> recorded <strong>\${intel.summary.total} total movements</strong>
+      across \${intel.summary.days} active days, averaging <strong>\${intel.summary.dailyAvg} movements per day</strong>.
+      \${intel.summary.peakDay ? 'The busiest day of the week is <strong>' + intel.summary.peakDay + '</strong>.' : ''}
+      \${intel.summary.peakHour !== null ? 'Peak activity occurs at <strong>' + hourLabel(intel.summary.peakHour) + '</strong>.' : ''}
     </p>
-    ${intel.summary.purposeInsight ? `<p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">${intel.summary.purposeInsight}</p>` : ''}
-    ${intel.summary.destInsight ? `<p style="font-size:13px;color:#374151;line-height:1.7;">${intel.summary.destInsight}</p>` : ''}
-  `
+    \${intel.summary.purposeInsight ? \`<p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">\${intel.summary.purposeInsight}</p>\` : ''}
+    \${intel.summary.destInsight ? \`<p style="font-size:13px;color:#374151;line-height:1.7;">\${intel.summary.destInsight}</p>\` : ''}
+  \`
 
-  const visitorSection = `
+  const visitorSection = \`
     <p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">
-      <strong>${intel.visitors.newCount}</strong> first-time entries recorded.
-      <strong>${intel.visitors.returningCount}</strong> returning vehicles or visitors.
-      ${intel.visitors.topRepeater ? 'The most frequent visitor is <strong>' + (intel.visitors.topRepeater.plate_number || intel.visitors.topRepeater.visitor_name || 'Unknown') + '</strong> with ' + intel.visitors.topRepeater.visit_count + ' visits.' : ''}
+      <strong>\${intel.visitors.newCount}</strong> first-time entries recorded.
+      <strong>\${intel.visitors.returningCount}</strong> returning vehicles or visitors.
+      \${intel.visitors.topRepeater ? 'The most frequent visitor is <strong>' + (intel.visitors.topRepeater.plate_number || intel.visitors.topRepeater.visitor_name || 'Unknown') + '</strong> with ' + intel.visitors.topRepeater.visit_count + ' visits.' : ''}
     </p>
-    ${intel.visitors.multiName.length > 0 ? `
+    \${intel.visitors.multiName.length > 0 ? \`
       <p style="font-size:13px;color:#374151;line-height:1.7;">
-        <strong>${intel.visitors.multiName.length} vehicle(s)</strong> were recorded with multiple different visitor names — these warrant review.
+        <strong>\${intel.visitors.multiName.length} vehicle(s)</strong> were recorded with multiple different visitor names — these warrant review.
       </p>
-    ` : ''}
-    ${intel.visitors.noId.length > 0 ? `
+    \` : ''}
+    \${intel.visitors.noId.length > 0 ? \`
       <p style="font-size:13px;color:#374151;line-height:1.7;margin-top:8px;">
-        <strong>${intel.visitors.noId.length} pedestrian entries</strong> were logged without an ID number on record.
+        <strong>\${intel.visitors.noId.length} pedestrian entries</strong> were logged without an ID number on record.
       </p>
-    ` : ''}
-  `
+    \` : ''}
+  \`
 
-  const operationalSection = `
+  const operationalSection = \`
     <p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">
-      ${intel.ops.incomplete > 0 ? '<strong>' + intel.ops.incomplete + ' entries</strong> were logged with incomplete records (no destination or purpose). ' : 'All entries were logged with complete records. '}
-      ${intel.ops.avgOcr !== null ? 'Average plate scan confidence was <strong>' + intel.ops.avgOcr + '%</strong>.' + (intel.ops.lowOcr > 0 ? ' <strong>' + intel.ops.lowOcr + ' scans</strong> fell below 70% confidence.' : '') : ''}
+      \${intel.ops.incomplete > 0 ? '<strong>' + intel.ops.incomplete + ' entries</strong> were logged with incomplete records (no destination or purpose). ' : 'All entries were logged with complete records. '}
+      \${intel.ops.avgOcr !== null ? 'Average plate scan confidence was <strong>' + intel.ops.avgOcr + '%</strong>.' + (intel.ops.lowOcr > 0 ? ' <strong>' + intel.ops.lowOcr + ' scans</strong> fell below 70% confidence.' : '') : ''}
     </p>
-    ${intel.ops.notesCount > 0 ? `<p style="font-size:13px;color:#374151;line-height:1.7;">Guards added notes to <strong>${intel.ops.notesCount} entries</strong>, indicating manually flagged situations beyond the standard log.</p>` : ''}
-  `
+    \${intel.ops.notesCount > 0 ? \`<p style="font-size:13px;color:#374151;line-height:1.7;">Guards added notes to <strong>\${intel.ops.notesCount} entries</strong>, indicating manually flagged situations beyond the standard log.</p>\` : ''}
+  \`
 
-
-  // Flag alerts section for PDF
-  const flagSection = intel.flagAlerts && intel.flagAlerts.length > 0 ? `
-    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
-      Watchlist Alerts
-    </h2>
-    <div style="margin-bottom:36px;">
-      <p style="font-size:13px;color:#374151;line-height:1.7;margin-bottom:12px;">
-        <strong>${intel.flagAlerts.length} flag alert(s)</strong> were triggered in this period.
-        ${intel.flagAlerts.filter(f => !f.acknowledged).length > 0 ? '<strong style="color:#c0132a;">' + intel.flagAlerts.filter(f => !f.acknowledged).length + ' remain unacknowledged.</strong>' : 'All have been acknowledged.'}
-      </p>
-    </div>
-  ` : '<p style="font-size:13px;color:#6b7280;margin-bottom:36px;">No watchlist alerts in this period.</p>'
-
-  const incSection = intel.incidents && intel.incidents.length > 0 ? `
-    <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
-      Incidents Summary
-    </h2>
-    <table style="width:100%;border-collapse:collapse;margin-bottom:36px;">
-      <thead><tr style="background:#f8f9fb;">
-        <th style="padding:10px 14px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Type</th>
-        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Severity</th>
-        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Status</th>
-        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Date</th>
-        <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Gate</th>
-      </tr></thead>
-      <tbody>
-        ${intel.incidents.map(inc => `
-          <tr>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${inc.type.replace(/_/g,' ')}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;color:${inc.severity === 'critical' ? '#c0132a' : inc.severity === 'serious' ? '#92530a' : '#1a56db'};font-weight:600;">${inc.severity}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${inc.status}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${new Date(inc.created_at).toLocaleDateString('en-NG', { day:'2-digit', month:'short', year:'numeric' })}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${inc.gates?.name || '—'}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  ` : ''
-
-  return `<!DOCTYPE html>
+  return \`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SENTRi Intelligence Brief — ${tenantName}</title>
+  <title>SENTRi Intelligence Brief — \${tenantName}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: white; }
@@ -212,13 +182,13 @@ function generateBriefHTML(intel, tenantName) {
       </div>
       <div style="text-align:right;">
         <div style="color:rgba(255,255,255,0.5);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;">Generated</div>
-        <div style="color:white;font-size:13px;font-weight:600;margin-top:2px;">${now} at ${nowTime}</div>
+        <div style="color:white;font-size:13px;font-weight:600;margin-top:2px;">\${now} at \${nowTime}</div>
         <div style="display:inline-block;margin-top:8px;background:rgba(192,19,42,0.3);border:1px solid rgba(192,19,42,0.5);color:#ff8a9a;font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;letter-spacing:0.08em;">CONFIDENTIAL</div>
       </div>
     </div>
     <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:24px;">
       <div style="color:rgba(255,255,255,0.5);font-size:11px;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Intelligence Brief</div>
-      <div style="color:white;font-size:26px;font-weight:700;">${tenantName}</div>
+      <div style="color:white;font-size:26px;font-weight:700;">\${tenantName}</div>
       <div style="color:rgba(255,255,255,0.6);font-size:13px;margin-top:4px;">Last 90 days · Automated pattern and anomaly analysis</div>
     </div>
   </div>
@@ -227,45 +197,45 @@ function generateBriefHTML(intel, tenantName) {
 
     <!-- Summary bar -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:40px;">
-      ${[
+      \${[
         { label: 'Total Movements', value: intel.summary.total, color: '#1a56db' },
         { label: 'Active Days', value: intel.summary.days, color: '#1a1a2e' },
         { label: 'Daily Average', value: intel.summary.dailyAvg, color: '#1a1a2e' },
         { label: 'Anomalies Detected', value: intel.anomalies.length, color: intel.anomalies.length > 0 ? '#c0132a' : '#0e7c3a' },
-      ].map(s => `
+      ].map(s => \`
         <div style="background:#f8f9fb;border:1px solid #e2e6ed;border-radius:8px;padding:16px;text-align:center;">
-          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">${s.label}</div>
-          <div style="font-size:28px;font-weight:700;color:${s.color};">${s.value}</div>
+          <div style="font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">\${s.label}</div>
+          <div style="font-size:28px;font-weight:700;color:\${s.color};">\${s.value}</div>
         </div>
-      `).join('')}
+      \`).join('')}
     </div>
 
     <!-- Anomalies -->
     <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
       Anomalies & Alerts
     </h2>
-    <div style="margin-bottom:36px;">${anomalySection}</div>
+    <div style="margin-bottom:36px;">\${anomalySection}</div>
 
     <!-- Pattern analysis -->
     <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
       Pattern Analysis
     </h2>
-    <div style="margin-bottom:36px;">${patternSection}</div>
+    <div style="margin-bottom:36px;">\${patternSection}</div>
 
     <!-- Visitor intelligence -->
     <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
       Visitor Intelligence
     </h2>
-    <div style="margin-bottom:36px;">${visitorSection}</div>
+    <div style="margin-bottom:36px;">\${visitorSection}</div>
 
     <!-- Operational -->
     <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
       Operational Intelligence
     </h2>
-    <div style="margin-bottom:40px;">${operationalSection}</div>
+    <div style="margin-bottom:40px;">\${operationalSection}</div>
 
     <!-- Top repeat visitors table -->
-    ${intel.visitors.top.length > 0 ? `
+    \${intel.visitors.top.length > 0 ? \`
     <h2 style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#6b7280;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e2e6ed;">
       High-Frequency Visitors
     </h2>
@@ -278,17 +248,17 @@ function generateBriefHTML(intel, tenantName) {
         <th style="padding:10px 14px;font-size:11px;color:#6b7280;text-transform:uppercase;border-bottom:2px solid #e2e6ed;">Top Destination</th>
       </tr></thead>
       <tbody>
-        ${intel.visitors.top.map(v => `
+        \${intel.visitors.top.map(v => \`
           <tr>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;font-family:monospace;font-weight:600;">${v.plate_number || v.visitor_name || '—'}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:700;">${v.visit_count}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${fmt(v.first_visit)}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${fmt(v.last_visit)}</td>
-            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">${v.top_destination || '—'}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;font-family:monospace;font-weight:600;">\${v.plate_number || v.visitor_name || '—'}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;text-align:center;font-weight:700;">\${v.visit_count}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">\${fmt(v.first_visit)}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">\${fmt(v.last_visit)}</td>
+            <td style="padding:9px 14px;border-bottom:1px solid #e2e6ed;">\${v.top_destination || '—'}</td>
           </tr>
-        `).join('')}
+        \`).join('')}
       </tbody>
-    </table>` : ''}
+    </table>\` : ''}
 
   </div>
 
@@ -297,7 +267,7 @@ function generateBriefHTML(intel, tenantName) {
     <span style="font-size:11px;color:#9ca3af;">This document is CONFIDENTIAL and for authorised personnel only</span>
   </div>
 </body>
-</html>`
+</html>\`
 }
 
 // ── Main IntelligenceTab ──
@@ -314,7 +284,7 @@ export default function IntelligenceTab() {
     setLoading(true)
     const since90 = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
 
-    const [movRes, repRes, flagRes, incRes] = await Promise.all([
+    const [movRes, repRes] = await Promise.all([
       supabase.from('movements')
         .select('id,type,plate_number,visitor_name,id_number,destination,purpose,occupants,notes,entry_time,exit_time,duration_minutes,flag_triggered,ocr_confidence,gate_id,gates(name)')
         .eq('tenant_id', tenant.id)
@@ -324,23 +294,11 @@ export default function IntelligenceTab() {
         .select('*')
         .eq('tenant_id', tenant.id)
         .order('visit_count', { ascending: false })
-        .limit(20),
-      supabase.from('flag_alerts')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .gte('alerted_at', since90)
-        .order('alerted_at', { ascending: false }),
-      supabase.from('incidents')
-        .select('id,type,severity,status,description,created_at,gates(name)')
-        .eq('tenant_id', tenant.id)
-        .gte('created_at', since90)
-        .order('created_at', { ascending: false })
+        .limit(20)
     ])
 
     const movements = movRes.data || []
     const repeatVisitors = repRes.data || []
-    const flagAlerts = flagRes.data || []
-    const incidents = incRes.data || []
 
     if (movements.length === 0) {
       setIntel({ empty: true })
@@ -506,29 +464,6 @@ export default function IntelligenceTab() {
       })
     }
 
-    // Flag alert anomalies
-    const unacknowledged = flagAlerts.filter(f => !f.acknowledged)
-    if (flagAlerts.length > 0) {
-      anomalies.unshift({
-        level: unacknowledged.length > 0 ? 'critical' : 'warning',
-        title: flagAlerts.length + ' watchlist hit' + (flagAlerts.length === 1 ? '' : 's') + ' in this period' + (unacknowledged.length > 0 ? ' — ' + unacknowledged.length + ' unacknowledged' : ' — all acknowledged'),
-        body: 'Flagged vehicles or persons were detected attempting entry. Review the Alerts tab for full details.',
-        meta: 'Most recent: ' + new Date(flagAlerts[0].alerted_at).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-      })
-    }
-
-    // Incident anomalies
-    const openInc = incidents.filter(i => i.status === 'open')
-    const criticalInc = incidents.filter(i => i.severity === 'critical')
-    if (incidents.length > 0) {
-      anomalies.unshift({
-        level: criticalInc.length > 0 ? 'critical' : openInc.length > 0 ? 'warning' : 'info',
-        title: incidents.length + ' incident' + (incidents.length === 1 ? '' : 's') + ' reported' + (openInc.length > 0 ? ' — ' + openInc.length + ' still open' : ' — all resolved or acknowledged'),
-        body: criticalInc.length > 0 ? criticalInc.length + ' critical incident(s) recorded in this period. Immediate review required.' : 'Incidents have been logged by gate officers. Review the Incidents tab for full details.',
-        meta: 'Most recent: ' + new Date(incidents[0].created_at).toLocaleString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-      })
-    }
-
     if (anomalies.length === 0) {
       anomalies.push({
         level: 'ok',
@@ -542,19 +477,17 @@ export default function IntelligenceTab() {
     if (topPurpose.length > 0) {
       const topP = topPurpose[0]
       const pct = Math.round((topP[1] / movements.length) * 100)
-      purposeInsight = `The most common stated purpose is "${topP[0]}" accounting for ${pct}% of all entries (${topP[1]} movements).${topPurpose.length > 1 ? ' This is followed by "' + topPurpose[1][0] + '" at ' + Math.round((topPurpose[1][1] / movements.length) * 100) + '%.' : ''}`
+      purposeInsight = \`The most common stated purpose is "\${topP[0]}" accounting for \${pct}% of all entries (\${topP[1]} movements).\${topPurpose.length > 1 ? ' This is followed by "' + topPurpose[1][0] + '" at ' + Math.round((topPurpose[1][1] / movements.length) * 100) + '%.' : ''}\`
     }
 
     let destInsight = null
     if (topDest.length > 0) {
-      destInsight = `The most visited destination is "${topDest[0][0]}" with ${topDest[0][1]} visits (${topDestPct}% of all movements).${topDestPct > 50 ? ' This high concentration warrants attention — over half of all visitors are directed to a single location.' : ''}`
+      destInsight = \`The most visited destination is "\${topDest[0][0]}" with \${topDest[0][1]} visits (\${topDestPct}% of all movements).\${topDestPct > 50 ? ' This high concentration warrants attention — over half of all visitors are directed to a single location.' : ''}\`
     }
 
     setIntel({
       empty: false,
       anomalies,
-      flagAlerts,
-      incidents,
       byHour,
       byDow: dowMap,
       summary: {
@@ -820,3 +753,53 @@ export default function IntelligenceTab() {
     </div>
   )
 }
+`
+
+fs.writeFileSync(intelligencePath, intelligenceContent, 'utf8')
+console.log('✓ IntelligenceTab.jsx created')
+
+// ── 2. Add Intelligence tab to CommandApp ──
+const commandPath = path.join(process.cwd(), 'src', 'pages', 'command', 'CommandApp.jsx')
+let commandContent = fs.readFileSync(commandPath, 'utf8')
+
+if (commandContent.includes('IntelligenceTab')) {
+  console.log('✓ IntelligenceTab already in CommandApp — skipping')
+} else {
+  // Add import after last import
+  commandContent = commandContent.replace(
+    /import ReportTab from/,
+    `import IntelligenceTab from './IntelligenceTab'\nimport ReportTab from`
+  )
+  if (!commandContent.includes("import IntelligenceTab")) {
+    // fallback: add after first import block
+    commandContent = commandContent.replace(
+      /(import.*from.*\n)(export|function|const)/,
+      `$1import IntelligenceTab from './IntelligenceTab'\n$2`
+    )
+  }
+  console.log('✓ Added IntelligenceTab import to CommandApp')
+  fs.writeFileSync(commandPath, commandContent, 'utf8')
+}
+
+// Audit CommandApp to see tab structure
+console.log('\nCommandApp current content (for tab wiring):')
+console.log(commandContent.slice(0, 200))
+
+// ── 3. Check tabs.jsx for tab definitions ──
+const tabsPath = path.join(process.cwd(), 'src', 'pages', 'command', 'tabs.jsx')
+if (fs.existsSync(tabsPath)) {
+  console.log('\ntabs.jsx exists — Intelligence tab needs to be wired in CommandApp directly')
+}
+
+// Git
+try {
+  execSync('git add src/pages/command/IntelligenceTab.jsx src/pages/command/CommandApp.jsx', { stdio: 'inherit' })
+  execSync('git commit -m "Feature: Intelligence tab with anomaly detection, pattern analysis, visitor and operational intelligence + downloadable brief"', { stdio: 'inherit' })
+  execSync('git push origin main', { stdio: 'inherit' })
+  console.log('✓ Pushed to GitHub')
+} catch (e) {
+  console.log('Git error:', e.message)
+  process.exit(1)
+}
+
+console.log('\nDone. Now audit CommandApp.jsx so I can wire the Intelligence tab into the nav.')

@@ -3,7 +3,6 @@ import { useAuthStore } from '../../store'
 import { supabase } from '../../lib/supabase'
 import { LiveTab, WatchlistTab, AlertsTab, ProfileTab } from './tabs'
 import IncidentsTab from './IncidentsTab'
-import IntelligenceTab from './IntelligenceTab'
 import ReportTab from './ReportTab'
 import GatesTab from './GatesTab'
 
@@ -15,7 +14,6 @@ const TABS = [
   { key: 'report', label: 'Report' },
   { key: 'gates', label: 'Gates' },
   { key: 'profile', label: 'Profile' },
-  { key: 'intelligence', label: 'Intelligence' },
 ]
 
 export default function CommandApp() {
@@ -50,7 +48,6 @@ export default function CommandApp() {
       case 'watchlist': return <WatchlistTab />
       case 'alerts': return <AlertsTab onUnreadChange={setAlertCount} />
       case 'incidents': return <IncidentsTab onCountChange={fetchCounts} />
-      case 'intelligence': return <IntelligenceTab />
       case 'report': return <ReportTab />
       case 'gates': return <GatesTab />
       case 'profile': return <ProfileTab />
@@ -84,9 +81,9 @@ export default function CommandApp() {
             onClick={() => setActiveTab(tab.key)}
             style={{
               padding: '6px 12px', borderRadius: '6px', border: 'none',
-              background: activeTab === tab.key ? (tab.key === 'intelligence' ? '#0a0f1e' : 'var(--accent)') : tab.key === 'intelligence' ? 'rgba(10,15,30,0.06)' : 'transparent',
-              color: activeTab === tab.key ? 'white' : tab.key === 'intelligence' ? '#0a0f1e' : 'var(--text-1)',
-              fontWeight: tab.key === 'intelligence' ? 700 : 500,
+              background: activeTab === tab.key ? 'var(--accent)' : 'transparent',
+              color: activeTab === tab.key ? 'white' : 'var(--text-1)',
+              fontWeight: 500,
               fontFamily: 'var(--font-body)', fontSize: '13px', fontWeight: 500,
               cursor: 'pointer', whiteSpace: 'nowrap', position: 'relative',
               flexShrink: 0
