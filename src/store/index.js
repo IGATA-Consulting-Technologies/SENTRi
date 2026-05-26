@@ -81,8 +81,8 @@ export const useGuardStore = create(
       setActiveTab: (tab) => set({ activeTab: tab }),
       setOnline: (val) => set({ isOnline: val }),
 
-      startShift: ({ guard, shiftLogId }) => set({
-        onShift: true, guard, shiftLogId,
+      startShift: (guard, gate, tenant, shiftLogId) => set({
+        onShift: true, guard, gate, tenant, shiftLogId,
         shiftStart: new Date().toISOString(), activeTab: 'admit',
       }),
 

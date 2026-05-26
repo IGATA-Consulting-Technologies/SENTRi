@@ -13,6 +13,7 @@ export default function CommandLogin() {
   const [rank, setRank] = useState('')
   const [serviceNumber, setServiceNumber] = useState('')
   const [installationName, setInstallationName] = useState('')
+  const [sector, setSector] = useState('military')
   const [showPass, setShowPass] = useState(false)
   const [regLoading, setRegLoading] = useState(false)
   const [regError, setRegError] = useState('')
@@ -123,6 +124,37 @@ export default function CommandLogin() {
 
     setRegLoading(false)
     setRegSuccess(true)
+    
+    // Notify Mannie of new registration
+    try {
+      await fetch('/.netlify/functions/send-alert-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: ['igataprojects@gmail.com'],
+          subject: 'New SENTRi Registration — ' + installationName.trim(),
+          html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+            <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+              <div style="background:linear-gradient(135deg,#0a0f1e 0%,#1a56db 100%);padding:28px;">
+                <div style="color:white;font-size:20px;font-weight:800;letter-spacing:0.08em;">SENTRi</div>
+                <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px;">New Registration Alert</div>
+              </div>
+              <div style="padding:28px;">
+                <h2 style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a2e;">New account registered</h2>
+                <table style="width:100%;border-collapse:collapse;">
+                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;width:40%;">Installation</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;font-weight:600;">${installationName.trim()}</td></tr>
+                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Officer name</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;font-weight:600;">${rank.trim() ? rank.trim() + ' ' : ''}${name.trim()}</td></tr>
+                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Email</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;">${email.trim()}</td></tr>
+                  <tr><td style="padding:8px 0;font-size:12px;color:#6b7280;">Registered</td><td style="padding:8px 0;font-size:14px;">${new Date().toLocaleString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td></tr>
+                </table>
+                <a href="https://sentri-igata.netlify.app/admin" style="display:block;margin-top:24px;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Review in Superadmin →</a>
+              </div>
+              <div style="padding:16px 28px;border-top:1px solid #e2e6ed;font-size:11px;color:#9ca3af;">IGATA Technologies · SENTRi Platform</div>
+            </div>
+          </body></html>`
+        })
+      })
+    } catch (e) { console.error('Notification email error:', e) }
   }
 
   const switchMode = (m) => { setMode(m); setRegError(''); setRegSuccess(false); setForgotSent(false) }

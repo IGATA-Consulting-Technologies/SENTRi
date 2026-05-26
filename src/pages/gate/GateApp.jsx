@@ -49,6 +49,20 @@ async function syncOfflineQueue() {
   }
 }
 
+// Swap manifest for gate PWA
+function useGateManifest() {
+  useEffect(() => {
+    let link = document.querySelector('link[rel="manifest"]')
+    if (!link) { link = document.createElement('link'); link.rel = 'manifest'; document.head.appendChild(link) }
+    link.href = '/manifest-gate.json'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0a0f1e')
+    return () => {
+      if (link) link.href = '/manifest-command.json'
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#1a56db')
+    }
+  }, [])
+}
+
 export default function GateApp() {
   const { tenantSlug, gateSlug } = useParams()
   const { onShift, gate, tenant, activeTab, setActiveTab } = useGuardStore()

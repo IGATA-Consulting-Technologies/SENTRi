@@ -2,8 +2,89 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
 
+// Sector config — controls what identity fields the guard sees
+function getSectorConfig(sector) {
+  switch (sector) {
+    case 'military':
+      return {
+        idLabel: 'Service number',
+        idPlaceholder: 'e.g. N/12345',
+        idMono: true,
+        showRank: true,
+        rankLabel: 'Rank',
+        rankPlaceholder: 'e.g. Sgt, Cpl, Lt',
+        nameLabel: 'Full name',
+        displayId: (g) => g.serviceNumber,
+        displayTitle: (g) => [g.rank, g.name].filter(Boolean).join(' '),
+      }
+    case 'oil_gas':
+      return {
+        idLabel: 'Staff ID',
+        idPlaceholder: 'e.g. OG/12345',
+        idMono: true,
+        showRank: false,
+        rankLabel: 'Department',
+        rankPlaceholder: 'e.g. HSE, Operations',
+        nameLabel: 'Full name',
+        displayId: (g) => g.serviceNumber,
+        displayTitle: (g) => g.name,
+      }
+    case 'banking':
+      return {
+        idLabel: 'Staff ID',
+        idPlaceholder: 'e.g. BK/00123',
+        idMono: true,
+        showRank: false,
+        rankLabel: 'Branch / Unit',
+        rankPlaceholder: 'e.g. Security, Operations',
+        nameLabel: 'Full name',
+        displayId: (g) => g.serviceNumber,
+        displayTitle: (g) => g.name,
+      }
+    case 'corporate':
+      return {
+        idLabel: 'Employee ID',
+        idPlaceholder: 'e.g. EMP/456',
+        idMono: true,
+        showRank: false,
+        rankLabel: 'Department',
+        rankPlaceholder: 'e.g. Facilities, Security',
+        nameLabel: 'Full name',
+        displayId: (g) => g.serviceNumber,
+        displayTitle: (g) => g.name,
+      }
+    case 'government':
+      return {
+        idLabel: 'Staff ID / Grade',
+        idPlaceholder: 'e.g. GL07/1234',
+        idMono: true,
+        showRank: false,
+        rankLabel: 'Ministry / Agency',
+        rankPlaceholder: 'e.g. Ministry of Defence',
+        nameLabel: 'Full name',
+        displayId: (g) => g.serviceNumber,
+        displayTitle: (g) => g.name,
+      }
+    default:
+      return {
+        idLabel: 'ID number',
+        idPlaceholder: 'Your ID number',
+        idMono: true,
+        showRank: false,
+        rankLabel: 'Department / Unit',
+        rankPlaceholder: 'Optional',
+        nameLabel: 'Full name',
+        displayId: (g) => g.serviceNumber,
+        displayTitle: (g) => g.name,
+      }
+  }
+}
+
 export default function ShiftStart({ gateData, tenantData }) {
   const { startShift } = useGuardStore()
+  const sector = tenantData?.sector || 'other'
+  const config = getSectorConfig(sector)
+
   const [step, setStep] = useState(1)
   const [serviceNumber, setServiceNumber] = useState('')
   const [name, setName] = useState('')
@@ -13,9 +94,11 @@ export default function ShiftStart({ gateData, tenantData }) {
   const [guardRecord, setGuardRecord] = useState(null)
 
   async function verifyIdentity() {
-    if (!serviceNumber.trim() || !name.trim()) { setError('Please enter your service number and full name.'); return }
+    if (!serviceNumber.trim() || !name.trim()) {
+      setError('Please enter your ' + config.idLabel.toLowerCase() + ' and full name.')
+      return
+    }
     setLoading(true); setError('')
-
     try {
       const { data } = await supabase
         .from('officers')
@@ -27,20 +110,36 @@ export default function ShiftStart({ gateData, tenantData }) {
 
       if (data) {
         const nameMatch = data.name.toLowerCase().includes(name.trim().toLowerCase().split(' ')[0].toLowerCase())
-        if (!nameMatch) { setError('Name does not match records. Please check and try again.'); setLoading(false); return }
+        if (!nameMatch) {
+          setError('Name does not match records. Please check and try again.')
+          setLoading(false); return
+        }
         setGuardRecord(data)
       } else {
-        setGuardRecord({ name: name.trim(), service_number: serviceNumber.trim().toUpperCase(), rank: rank.trim() })
+        setGuardRecord({
+          name: name.trim(),
+          service_number: serviceNumber.trim().toUpperCase(),
+          rank: rank.trim()
+        })
       }
       setStep(2)
     } catch {
-      setGuardRecord({ name: name.trim(), service_number: serviceNumber.trim().toUpperCase(), rank: rank.trim() })
+      setGuardRecord({
+        name: name.trim(),
+        service_number: serviceNumber.trim().toUpperCase(),
+        rank: rank.trim()
+      })
       setStep(2)
     } finally { setLoading(false) }
   }
 
   async function beginShift() {
     setLoading(true)
+    const guardObj = {
+      name: guardRecord.name,
+      serviceNumber: guardRecord.service_number,
+      rank: guardRecord.rank || rank || '',
+    }
     try {
       const { data: shiftLog } = await supabase
         .from('shift_logs')
@@ -54,19 +153,9 @@ export default function ShiftStart({ gateData, tenantData }) {
         .select()
         .single()
 
-      startShift(
-        { name: guardRecord.name, serviceNumber: guardRecord.service_number, rank: guardRecord.rank || rank },
-        gateData,
-        tenantData,
-        shiftLog?.id || null
-      )
+      startShift(guardObj, gateData, tenantData, shiftLog?.id || null)
     } catch {
-      startShift(
-        { name: guardRecord.name, serviceNumber: guardRecord.service_number, rank: rank },
-        gateData,
-        tenantData,
-        null
-      )
+      startShift(guardObj, gateData, tenantData, null)
     } finally { setLoading(false) }
   }
 
@@ -78,7 +167,7 @@ export default function ShiftStart({ gateData, tenantData }) {
     }}>
       <div style={{ width: '100%', maxWidth: '400px' }} className="fade-up">
 
-        {/* Installation branding */}
+        {/* Branding */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           {tenantData?.logo_url
             ? <img src={tenantData.logo_url} alt="logo" style={{ width: '60px', height: '60px', borderRadius: '14px', objectFit: 'cover', margin: '0 auto 12px', display: 'block' }} />
@@ -97,9 +186,8 @@ export default function ShiftStart({ gateData, tenantData }) {
           </p>
         </div>
 
-        {/* Step bars */}
         <div className="steps">
-          {[1, 2, 3].map(s => <div key={s} className={`step-bar ${step >= s ? 'active' : ''}`} />)}
+          {[1, 2].map(s => <div key={s} className={`step-bar ${step >= s ? 'active' : ''}`} />)}
         </div>
 
         {/* Step 1 — Identity */}
@@ -111,26 +199,35 @@ export default function ShiftStart({ gateData, tenantData }) {
             <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>
               All entries this shift will be logged under your name.
             </p>
+
             <div className="field">
-              <label>Service number</label>
-              <input type="text" placeholder="e.g. N/12345" value={serviceNumber}
+              <label>{config.idLabel}</label>
+              <input type="text" placeholder={config.idPlaceholder} value={serviceNumber}
                 onChange={e => setServiceNumber(e.target.value.toUpperCase())}
-                style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', fontSize: '16px' }} />
+                style={{ fontFamily: config.idMono ? 'var(--font-mono)' : 'inherit', letterSpacing: config.idMono ? '0.06em' : 0, fontSize: '16px' }} />
             </div>
-            <div className="field">
-              <label>Rank</label>
-              <input type="text" placeholder="e.g. Sgt, Cpl, Pvt" value={rank}
-                onChange={e => setRank(e.target.value)} autoCapitalize="words" />
-            </div>
+
+            {config.showRank && (
+              <div className="field">
+                <label>{config.rankLabel}</label>
+                <input type="text" placeholder={config.rankPlaceholder} value={rank}
+                  onChange={e => setRank(e.target.value)} autoCapitalize="words" />
+              </div>
+            )}
+
             <div className="field" style={{ marginBottom: '20px' }}>
-              <label>Full name</label>
+              <label>{config.nameLabel}</label>
               <input type="text" placeholder="Your full name" value={name}
                 onChange={e => setName(e.target.value)} autoCapitalize="words" />
             </div>
-            {error && <div className="alert alert-warn">{error}</div>}
+
+            {error && <div className="alert alert-warn" style={{ marginBottom: '16px' }}>{error}</div>}
+
             <button className="btn btn-primary btn-full btn-lg" onClick={verifyIdentity}
-              disabled={loading || !serviceNumber || !name}>
-              {loading ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Verifying...</> : 'Continue →'}
+              disabled={loading || !serviceNumber.trim() || !name.trim()}>
+              {loading
+                ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Verifying...</>
+                : 'Continue →'}
             </button>
           </div>
         )}
@@ -143,12 +240,12 @@ export default function ShiftStart({ gateData, tenantData }) {
             </h2>
             <div style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', padding: '16px', marginBottom: '20px' }}>
               {[
-                { label: 'Officer', value: `${guardRecord.rank || rank} ${guardRecord.name}`.trim() },
-                { label: 'Service No.', value: guardRecord.service_number, mono: true },
+                { label: 'Officer', value: config.displayTitle(guardRecord) },
+                { label: config.idLabel, value: guardRecord.service_number, mono: true },
                 { label: 'Gate', value: gateData?.name },
                 { label: 'Installation', value: tenantData?.name },
                 { label: 'Shift start', value: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }
-              ].map(r => (
+              ].filter(r => r.value).map(r => (
                 <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-2)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{r.label}</span>
                   <span style={{ fontSize: '14px', fontWeight: '600', fontFamily: r.mono ? 'var(--font-mono)' : 'var(--font-display)', color: 'var(--text-0)' }}>{r.value}</span>

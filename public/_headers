@@ -1,0 +1,8 @@
+/gate/*
+  Link: </manifest-gate.json>; rel="manifest"
+
+/command/*
+  Link: </manifest-command.json>; rel="manifest"
+
+/login
+  Link: </manifest-command.json>; rel="manifest"
