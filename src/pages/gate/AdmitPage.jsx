@@ -35,16 +35,27 @@ export default function AdmitPage({ gateData, tenantData }) {
 
   useEffect(() => {
     async function loadConfig() {
-      if (!effectiveTenant?.id) return
+      // Always prefer store tenant (freshly loaded from DB) over prop
+      const activeTenant = useGuardStore.getState().tenant || tenantData
+      if (!activeTenant?.id) return
       const { data } = await supabase
         .from('tenants')
         .select('custom_destinations, custom_purposes')
-        .eq('id', effectiveTenant.id)
+        .eq('id', activeTenant.id)
         .single()
       if (data?.custom_destinations?.length > 0) setTenantDestinations(data.custom_destinations)
       if (data?.custom_purposes?.length > 0) setTenantPurposes(data.custom_purposes)
     }
-    loadConfig()
+    // Wait for store to be populated if needed
+    if (useGuardStore.getState().tenant?.id) {
+      loadConfig()
+    } else {
+      const interval = setInterval(() => {
+        if (useGuardStore.getState().tenant?.id) { clearInterval(interval); loadConfig() }
+      }, 200)
+      setTimeout(() => clearInterval(interval), 5000)
+      return () => clearInterval(interval)
+    }
   }, [effectiveTenant?.id])
 
   const activeDestinations = tenantDestinations || DESTINATIONS

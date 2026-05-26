@@ -9,7 +9,18 @@ export default function GateLogPage({ onBack }) {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
 
-  useEffect(() => { fetchMovements() }, [period])
+  useEffect(() => {
+    if (tenant?.id && gate?.id) {
+      fetchMovements()
+    } else {
+      const interval = setInterval(() => {
+        const state = useGuardStore.getState()
+        if (state.tenant?.id && state.gate?.id) { clearInterval(interval); fetchMovements() }
+      }, 200)
+      setTimeout(() => clearInterval(interval), 5000)
+      return () => clearInterval(interval)
+    }
+  }, [period, tenant, gate])
 
   async function fetchMovements() {
     setLoading(true)

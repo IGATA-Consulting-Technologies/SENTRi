@@ -10,7 +10,19 @@ export default function CheckoutPage() {
   const [checkingOut, setCheckingOut] = useState(null)
   const [checkedOut, setCheckedOut] = useState(null)
 
-  useEffect(() => { if (tenant?.id) load() }, [tenant])
+  useEffect(() => {
+    if (tenant?.id) {
+      load()
+    } else {
+      // Tenant may not be in store yet — poll for it
+      const interval = setInterval(() => {
+        const t = useGuardStore.getState().tenant
+        if (t?.id) { clearInterval(interval); load() }
+      }, 200)
+      setTimeout(() => clearInterval(interval), 5000)
+      return () => clearInterval(interval)
+    }
+  }, [tenant])
 
   async function load() {
     setLoading(true)

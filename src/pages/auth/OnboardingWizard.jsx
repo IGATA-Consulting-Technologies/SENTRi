@@ -172,16 +172,21 @@ export default function OnboardingWizard() {
     for (const g of validGates) {
       const gSlug = g.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
         + '-' + Math.random().toString(36).slice(2, 6)
-      const { data } = await supabase.from('gates').insert({
+      const { data, error: gErr } = await supabase.from('gates').insert({
         tenant_id: tenantId,
         name: g.name.trim(),
         slug: gSlug,
         location: g.location.trim() || null,
         is_active: true,
       }).select().single()
-      if (data) created.push({ ...data, url: window.location.origin + '/gate/' + tenantSlug + '/' + gSlug })
+      if (data) {
+        created.push({ ...data, url: window.location.origin + '/gate/' + tenantSlug + '/' + gSlug })
+      } else if (gErr) {
+        console.error('Gate creation error:', gErr.message)
+      }
     }
-    setCreatedGates(created)
+    // Set all gates at once after loop completes
+    setCreatedGates([...created])
     // Mark onboarding complete and fire notification email
     await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenantId)
     try {
