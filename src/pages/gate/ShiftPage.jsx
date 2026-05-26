@@ -9,8 +9,8 @@ function dur(start) {
 
 export default function ShiftPage({ gateData, tenantData }) {
   const { guard, gate, tenant, shiftStart, shiftLogId, endShift } = useGuardStore()
-  const effectiveGate = gate || gateData
-  const effectiveTenant = tenant || tenantData
+  const effectiveGate = gate || gateData || useGuardStore.getState().gate
+  const effectiveTenant = tenant || tenantData || useGuardStore.getState().tenant
   const [insideCount, setInsideCount] = useState(0)
   const [todayCount, setTodayCount] = useState(0)
   const [handoverStep, setHandoverStep] = useState(0) // 0=main, 1=handover form, 2=done, 3=end confirm

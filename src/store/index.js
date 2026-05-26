@@ -101,10 +101,15 @@ export const useGuardStore = create(
     }),
     {
       name: 'sentri-guard-shift',
+      // IMPORTANT: gate and tenant are NOT persisted.
+      // They are always loaded fresh from Supabase via the gate URL.
+      // Only shift identity and timing is persisted.
       partialize: (state) => ({
-        onShift: state.onShift, guard: state.guard, gate: state.gate,
-        tenant: state.tenant, shiftStart: state.shiftStart,
-        shiftLogId: state.shiftLogId, activeTab: state.activeTab,
+        onShift: state.onShift,
+        guard: state.guard,
+        shiftStart: state.shiftStart,
+        shiftLogId: state.shiftLogId,
+        activeTab: state.activeTab,
       }),
     }
   )

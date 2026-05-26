@@ -84,12 +84,18 @@ export default function GateApp() {
 
   async function loadGate() {
     setLoading(true)
+    // Always clear stored gate/tenant first — prevents cached data from wrong tenant showing
+    useGuardStore.getState().setTenant(null)
+    useGuardStore.getState().setGate(null)
+
     const { data: tenantData, error: tenantErr } = await supabase
       .from('tenants').select('*').eq('slug', tenantSlug).eq('is_active', true).single()
     if (tenantErr || !tenantData) { setError('Installation not found or inactive.'); setLoading(false); return }
+
     const { data: gateData, error: gateErr } = await supabase
       .from('gates').select('*').eq('tenant_id', tenantData.id).eq('slug', gateSlug).eq('is_active', true).single()
     if (gateErr || !gateData) { setError('Gate not found or inactive.'); setLoading(false); return }
+
     useGuardStore.getState().setTenant(tenantData)
     useGuardStore.getState().setGate(gateData)
     setLoading(false)
