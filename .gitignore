@@ -4,3 +4,11 @@ dist/
 .env.production
 .DS_Store
 *.log
+
+# Local build scripts
+fix-*.js
+script-*.js
+wire-*.js
+build-*.js
+enhance-*.js
+audit*.txt

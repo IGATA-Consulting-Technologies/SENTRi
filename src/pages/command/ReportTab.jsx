@@ -218,10 +218,11 @@ export default function ReportTab() {
     const days = PERIODS.find(p => p.key === period)?.days || 30
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 
-    const [movRes, incRes, repRes] = await Promise.all([
+    const [movRes, incRes, repRes, flagRes] = await Promise.all([
       supabase.from('movements').select('id,type,entry_time,exit_time,duration_minutes,flag_triggered,destination,gate_id,gates(name)').eq('tenant_id', tenant.id).gte('entry_time', since),
       supabase.from('incidents').select('id,type,severity,status,created_at').eq('tenant_id', tenant.id).gte('created_at', since),
-      supabase.from('v_repeat_visitors').select('*').eq('tenant_id', tenant.id).order('visit_count', { ascending: false }).limit(10)
+      supabase.from('v_repeat_visitors').select('*').eq('tenant_id', tenant.id).order('visit_count', { ascending: false }).limit(10),
+      supabase.from('flag_alerts').select('id,acknowledged').eq('tenant_id', tenant.id).gte('alerted_at', since)
     ])
 
     const movements = movRes.data || []
@@ -291,7 +292,7 @@ export default function ReportTab() {
     <div className="report-tab">
       <div className="tab-header">
         <div>
-          <h2>Intelligence Report</h2>
+          <h2>Report</h2>
           <p className="tab-sub">Movement analytics for {tenant.name}</p>
         </div>
       </div>
