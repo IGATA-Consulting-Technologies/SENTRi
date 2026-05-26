@@ -313,9 +313,9 @@ function TenantsTab() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
               <button className="btn btn-primary btn-sm" onClick={() => setSelected(t)}>View</button>
-              {!t.is_active
-                ? <button className="btn btn-sm" style={{ background: 'var(--green)', color: 'white', border: 'none' }} onClick={() => activate(t)}>Activate</button>
-                : <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => deactivate(t)}>Deactivate</button>
+              {t.is_active
+                ? <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => deactivate(t)}>Deactivate</button>
+                : <button className="btn btn-sm" style={{ background: 'var(--green)', color: 'white', border: 'none' }} onClick={() => activate(t)}>Reactivate</button>
               }
             </div>
           </div>
@@ -714,18 +714,13 @@ export default function AdminApp() {
   const [activeTab, setActiveTab] = useState('overview')
   const [pendingCount, setPendingCount] = useState(0)
 
-  useEffect(() => {
-    if (authed) {
-      supabase.from('tenants').select('id', { count: 'exact' }).eq('is_active', false)
-        .then(({ count }) => setPendingCount(count || 0))
-    }
-  }, [authed])
+  useEffect(() => { }, [authed])
 
   if (!authed) return <LoginScreen onAuth={() => setAuthed(true)} />
 
   const TABS = [
     { key: 'overview', label: 'Overview' },
-    { key: 'requests', label: 'Requests', badge: pendingCount },
+    { key: 'requests', label: 'Registrations' },
     { key: 'tenants', label: 'Tenants' },
     { key: 'officers', label: 'Officers' },
     { key: 'incidents', label: 'Incidents' },
