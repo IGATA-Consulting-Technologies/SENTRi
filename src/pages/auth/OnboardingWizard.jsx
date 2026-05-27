@@ -42,45 +42,44 @@ const DEFAULT_PURPOSES = {
 export default function OnboardingWizard() {
   const { setTenantAndOfficer } = useAuthStore()
   const navigate = useNavigate()
-  const [checking, setChecking] = useState(true) // guard check in progress
+  const [checking, setChecking] = useState(true)
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  // Auth user info
+  // Auth user
   const [userId, setUserId] = useState(null)
   const [userEmail, setUserEmail] = useState('')
   const [userName, setUserName] = useState('')
 
-  // Step 1
+  // ── All wizard data collected in React state ──
+  // Step 1 — Installation
   const [installationName, setInstallationName] = useState('')
   const [sector, setSector] = useState('military')
   const [city, setCity] = useState('')
   const [stateName, setStateName] = useState('')
 
-  // Step 2
+  // Step 2 — Officer profile
   const [officerName, setOfficerName] = useState('')
   const [rank, setRank] = useState('')
   const [serviceNumber, setServiceNumber] = useState('')
 
-  // Created records
-  const [tenantId, setTenantId] = useState(null)
-  const [tenantSlug, setTenantSlug] = useState(null)
-
-  // Step 3
+  // Step 3 — Destinations
   const [destinations, setDestinations] = useState(DEFAULT_DESTINATIONS['military'])
   const [newDest, setNewDest] = useState('')
 
-  // Step 4
+  // Step 4 — Purposes
   const [purposes, setPurposes] = useState(DEFAULT_PURPOSES['military'])
   const [newPurpose, setNewPurpose] = useState('')
 
-  // Step 5
+  // Step 5 — Gates
   const [gates, setGates] = useState([{ name: '', location: '' }])
+
+  // Step 6 — Created results
   const [createdGates, setCreatedGates] = useState([])
   const [copied, setCopied] = useState(null)
 
-  // ── Guard: run on mount, check if wizard should be skipped ──
+  // ── Guard: check if wizard already done ──
   useEffect(() => {
     async function guard() {
       const { data: { session } } = await supabase.auth.getSession()
@@ -89,37 +88,29 @@ export default function OnboardingWizard() {
       const uid = session.user.id
       setUserId(uid)
       setUserEmail(session.user.email)
-      setUserName(session.user.user_metadata?.full_name || '')
+      const fullName = session.user.user_metadata?.full_name || ''
+      setUserName(fullName)
+      setOfficerName(fullName) // pre-fill officer name from registration
 
-      // Check if officer record exists
+      // Check if already completed
       const { data: officer } = await supabase
         .from('officers').select('*, tenants(*)').eq('id', uid).single()
 
       if (officer?.tenants?.onboarding_complete) {
-        // Wizard already completed — go straight to command
         setTenantAndOfficer(officer.tenants, officer)
         navigate('/command', { replace: true })
         return
       }
 
+      // If officer exists but incomplete — clean up and start fresh
+      // (this handles partial wizard attempts)
       if (officer?.tenant_id) {
-        // Officer exists but onboarding not complete — resume from correct step
-        setTenantId(officer.tenant_id)
-        setTenantSlug(officer.tenants?.slug || null)
-        if (officer.tenants?.sector) {
-          setSector(officer.tenants.sector)
-          setDestinations(DEFAULT_DESTINATIONS[officer.tenants.sector] || DEFAULT_DESTINATIONS.other)
-          setPurposes(DEFAULT_PURPOSES[officer.tenants.sector] || DEFAULT_PURPOSES.other)
-        }
-        setTenantAndOfficer(officer.tenants, officer)
-        // Officer and tenant exist — skip to gates step
-        setStep(5)
-        setChecking(false)
-        return
+        // Delete incomplete records so wizard starts clean
+        await supabase.from('gates').delete().eq('tenant_id', officer.tenant_id)
+        await supabase.from('officers').delete().eq('id', uid)
+        await supabase.from('tenants').delete().eq('id', officer.tenant_id)
       }
 
-      // Check if tenant exists without officer (step 1 completed but step 2 failed)
-      // We can't query tenants by user easily — just start from step 1
       setChecking(false)
     }
     guard()
@@ -131,162 +122,133 @@ export default function OnboardingWizard() {
     setPurposes(DEFAULT_PURPOSES[s] || DEFAULT_PURPOSES.other)
   }
 
-  function err(msg) { setError(msg); setSaving(false) }
-
-  // Step 1 — Create tenant
-  async function saveStep1() {
-    if (!installationName.trim()) { err('Installation name is required'); return }
-    setSaving(true); setError('')
-    const slug = installationName.trim().toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '') + '-' + Math.random().toString(36).slice(2, 6)
-    const { data, error: e } = await supabase.from('tenants').insert({
-      name: installationName.trim(), slug, sector,
-      city: city.trim(), state: stateName.trim(),
-      is_active: true, onboarding_complete: false,
-      custom_destinations: [], custom_purposes: [],
-    }).select().single()
-    if (e) { err('Could not create installation: ' + e.message); return }
-    setTenantId(data.id)
-    setTenantSlug(slug)
-    setSaving(false)
-    setStep(2)
-  }
-
-  // Step 2 — Create officer
-  async function saveStep2() {
-    if (!officerName.trim()) { err('Your name is required'); return }
-    const profile = SECTOR_PROFILE[sector] || SECTOR_PROFILE.other
-    if (!serviceNumber.trim()) { err(profile.idLabel + ' is required'); return }
-    setSaving(true); setError('')
-
-    // Check if officer already exists (resume scenario)
-    const { data: existing } = await supabase
-      .from('officers').select('id').eq('id', userId).single()
-
-    let officerData
-    if (existing) {
-      // Update existing officer rather than insert
-      const { data, error: e } = await supabase
-        .from('officers')
-        .update({ name: officerName.trim(), rank: rank.trim() || null, service_number: serviceNumber.trim().toUpperCase(), tenant_id: tenantId })
-        .eq('id', userId)
-        .select('*, tenants(*)').single()
-      if (e) { err('Could not update profile: ' + e.message); return }
-      officerData = data
-    } else {
-      const { data, error: e } = await supabase.from('officers').insert({
-        id: userId, name: officerName.trim(), rank: rank.trim() || null,
-        email: userEmail, service_number: serviceNumber.trim().toUpperCase(),
-        tenant_id: tenantId, role: 'command', is_active: true,
-      }).select('*, tenants(*)').single()
-      if (e) { err('Could not create profile: ' + e.message); return }
-      officerData = data
-    }
-
-    setTenantAndOfficer(officerData.tenants, officerData)
-    setSaving(false)
-    setStep(3)
-  }
-
-  // Step 3 — Save destinations
-  async function saveStep3() {
-    if (destinations.length === 0) { err('Add at least one destination'); return }
-    setSaving(true); setError('')
-    await supabase.from('tenants').update({ custom_destinations: destinations }).eq('id', tenantId)
-    setSaving(false); setStep(4)
-  }
-
-  // Step 4 — Save purposes
-  async function saveStep4() {
-    if (purposes.length === 0) { err('Add at least one purpose'); return }
-    setSaving(true); setError('')
-    await supabase.from('tenants').update({ custom_purposes: purposes }).eq('id', tenantId)
-    setSaving(false); setStep(5)
-  }
-
-  // Step 5 — Create gates + mark complete
-  async function saveStep5() {
+  // ── ATOMIC SAVE: everything at once at step 5 ──
+  async function saveAll() {
     const validGates = gates.filter(g => g.name.trim())
-    if (validGates.length === 0) { err('Add at least one gate'); return }
+    if (validGates.length === 0) { setError('Add at least one gate'); return }
     setSaving(true); setError('')
 
-    // Capture slug in local variable — state closure can be stale in loops
-    const currentTenantSlug = tenantSlug
-    const currentTenantId = tenantId
     const origin = window.location.origin
 
-    const created = []
-    for (const g of validGates) {
-      const gSlug = g.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
-        + '-' + Math.random().toString(36).slice(2, 6)
-      const { data, error: gErr } = await supabase.from('gates').insert({
-        tenant_id: currentTenantId,
-        name: g.name.trim(),
-        slug: gSlug,
-        location: g.location.trim() || null,
-        is_active: true,
-      }).select().single()
-      if (data) {
-        const gateUrl = origin + '/gate/' + currentTenantSlug + '/' + gSlug
-        created.push({ ...data, url: gateUrl })
-        console.log('Gate created:', g.name.trim(), gateUrl)
-      } else if (gErr) {
-        console.error('Gate creation error for', g.name.trim(), ':', gErr.message)
-      }
-    }
-    console.log('Total gates created:', created.length)
-    setCreatedGates([...created])
-
-    // Mark onboarding complete — with retry
-    const { error: completeErr } = await supabase
-      .from('tenants').update({ onboarding_complete: true }).eq('id', tenantId)
-    if (completeErr) {
-      await supabase.from('tenants').update({ onboarding_complete: true }).eq('id', tenantId)
-    }
-
-    // Update auth store tenant
-    const currentState = useAuthStore.getState()
-    if (currentState.tenant) {
-      currentState.setTenantAndOfficer(
-        { ...currentState.tenant, onboarding_complete: true },
-        currentState.officer
-      )
-    }
-
-    // Fire notification email
     try {
-      await fetch('/.netlify/functions/send-alert-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: ['igataprojects@gmail.com'],
-          subject: 'New SENTRi Installation Ready — ' + installationName.trim(),
-          html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-            <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-              <div style="background:linear-gradient(135deg,#0a0f1e 0%,#1a56db 100%);padding:28px;">
-                <div style="color:white;font-size:20px;font-weight:800;letter-spacing:0.08em;">SENTRi</div>
-                <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px;">New Installation Ready</div>
-              </div>
-              <div style="padding:28px;">
-                <h2 style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a2e;">Setup complete</h2>
-                <table style="width:100%;border-collapse:collapse;">
-                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;width:40%;">Installation</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;font-weight:600;">${installationName.trim()}</td></tr>
-                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Sector</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;">${sector}</td></tr>
-                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Officer</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;font-weight:600;">${rank.trim() ? rank.trim() + ' ' : ''}${officerName.trim()}</td></tr>
-                  <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Email</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;">${userEmail}</td></tr>
-                  <tr><td style="padding:8px 0;font-size:12px;color:#6b7280;">Gates</td><td style="padding:8px 0;font-size:14px;">${created.length} gate(s) created</td></tr>
-                </table>
-                <a href="https://sentri-igata.netlify.app/admin" style="display:block;margin-top:24px;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">View in Superadmin →</a>
-              </div>
-              <div style="padding:16px 28px;border-top:1px solid #e2e6ed;font-size:11px;color:#9ca3af;">IGATA Technologies · SENTRi Platform</div>
-            </div>
-          </body></html>`
-        })
-      })
-    } catch (e) { console.error('Notification email error:', e) }
+      // 1. INSERT tenant with ALL fields including destinations, purposes, complete flag
+      const tenantSlug = installationName.trim().toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
+        + '-' + Math.random().toString(36).slice(2, 6)
 
-    setSaving(false)
-    setStep(6)
+      const { data: tenant, error: tenantErr } = await supabase
+        .from('tenants')
+        .insert({
+          name: installationName.trim(),
+          slug: tenantSlug,
+          sector,
+          city: city.trim(),
+          state: stateName.trim(),
+          is_active: true,
+          onboarding_complete: true,
+          custom_destinations: destinations,
+          custom_purposes: purposes,
+        })
+        .select()
+        .single()
+
+      if (tenantErr) throw new Error('Could not create installation: ' + tenantErr.message)
+
+      // 2. INSERT officer
+      const { data: officer, error: officerErr } = await supabase
+        .from('officers')
+        .insert({
+          id: userId,
+          name: officerName.trim() || userName.trim(),
+          rank: rank.trim() || null,
+          email: userEmail,
+          service_number: serviceNumber.trim().toUpperCase(),
+          tenant_id: tenant.id,
+          role: 'command',
+          is_active: true,
+        })
+        .select('*, tenants(*)')
+        .single()
+
+      if (officerErr) {
+        // Clean up tenant if officer insert fails
+        await supabase.from('tenants').delete().eq('id', tenant.id)
+        throw new Error('Could not create profile: ' + officerErr.message)
+      }
+
+      // 3. INSERT all gates
+      const created = []
+      for (const g of validGates) {
+        const gSlug = g.name.trim().toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
+          + '-' + Math.random().toString(36).slice(2, 6)
+
+        const { data: gate, error: gateErr } = await supabase
+          .from('gates')
+          .insert({
+            tenant_id: tenant.id,
+            name: g.name.trim(),
+            slug: gSlug,
+            location: g.location.trim() || null,
+            is_active: true,
+          })
+          .select()
+          .single()
+
+        if (gate) {
+          created.push({ ...gate, url: origin + '/gate/' + tenantSlug + '/' + gSlug })
+        } else {
+          console.error('Gate error for', g.name, ':', gateErr?.message)
+        }
+      }
+
+      // 4. Update auth store
+      setTenantAndOfficer(officer.tenants, officer)
+      setCreatedGates(created)
+
+      // 5. Fire notification email
+      try {
+        await fetch('/.netlify/functions/send-alert-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: ['igataprojects@gmail.com'],
+            subject: 'New SENTRi Installation Ready — ' + installationName.trim(),
+            html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+              <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                <div style="background:linear-gradient(135deg,#0a0f1e 0%,#1a56db 100%);padding:28px;">
+                  <div style="color:white;font-size:20px;font-weight:800;letter-spacing:0.08em;">SENTRi</div>
+                  <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:4px;">New Installation Ready</div>
+                </div>
+                <div style="padding:28px;">
+                  <h2 style="margin:0 0 16px;font-size:18px;font-weight:700;color:#1a1a2e;">Setup complete</h2>
+                  <table style="width:100%;border-collapse:collapse;">
+                    <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;width:40%;">Installation</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;font-weight:600;">${installationName.trim()}</td></tr>
+                    <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Sector</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;">${sector}</td></tr>
+                    <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Officer</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;font-weight:600;">${rank.trim() ? rank.trim() + ' ' : ''}${officerName.trim() || userName.trim()}</td></tr>
+                    <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Email</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;">${userEmail}</td></tr>
+                    <tr><td style="padding:8px 0;font-size:12px;color:#6b7280;">Gates</td><td style="padding:8px 0;font-size:14px;">${created.length} gate(s) created</td></tr>
+                  </table>
+                  <a href="https://sentri-igata.netlify.app/admin" style="display:block;margin-top:24px;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">View in Superadmin →</a>
+                </div>
+                <div style="padding:16px 28px;border-top:1px solid #e2e6ed;font-size:11px;color:#9ca3af;">IGATA Technologies · SENTRi Platform</div>
+              </div>
+            </body></html>`
+          })
+        })
+      } catch (emailErr) {
+        console.error('Notification email error:', emailErr)
+        // Don't fail the wizard for email errors
+      }
+
+      setSaving(false)
+      setStep(6)
+
+    } catch (e) {
+      console.error('Wizard save error:', e)
+      setError(e.message || 'Setup failed. Please try again.')
+      setSaving(false)
+    }
   }
 
   function copyUrl(gate) {
@@ -298,7 +260,6 @@ export default function OnboardingWizard() {
   const profile = SECTOR_PROFILE[sector] || SECTOR_PROFILE.other
   const stepLabels = ['Installation', 'Profile', 'Destinations', 'Purposes', 'Gates']
 
-  // Show loading while guard check runs
   if (checking) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-0)' }}>
       <div style={{ textAlign: 'center' }}>
@@ -372,8 +333,10 @@ export default function OnboardingWizard() {
                 <input type="text" placeholder="e.g. Lagos State" value={stateName} onChange={e => setStateName(e.target.value)} />
               </div>
             </div>
-            <button className="btn btn-primary btn-full btn-lg" style={{ marginTop: '8px' }} onClick={saveStep1} disabled={saving || !installationName.trim()}>
-              {saving ? <><div className="spinner" style={{ width: '16px', height: '16px' }} /> Saving...</> : 'Continue →'}
+            <button className="btn btn-primary btn-full btn-lg" style={{ marginTop: '8px' }}
+              onClick={() => { if (!installationName.trim()) { setError('Installation name is required'); return } setError(''); setStep(2) }}
+              disabled={!installationName.trim()}>
+              Continue →
             </button>
           </div>
         )}
@@ -385,7 +348,7 @@ export default function OnboardingWizard() {
             <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Your command officer account for {installationName}.</p>
             <div className="field">
               <label>Full name *</label>
-              <input type="text" placeholder="Your full name" value={officerName || userName}
+              <input type="text" placeholder="Your full name" value={officerName}
                 onChange={e => { setOfficerName(e.target.value); setError('') }} autoCapitalize="words" />
             </div>
             <div className="field">
@@ -399,9 +362,11 @@ export default function OnboardingWizard() {
                 style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }} />
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-ghost" onClick={() => setStep(1)}>← Back</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveStep2} disabled={saving || !serviceNumber.trim()}>
-                {saving ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Saving...</> : 'Continue →'}
+              <button className="btn btn-ghost" onClick={() => { setError(''); setStep(1) }}>← Back</button>
+              <button className="btn btn-primary" style={{ flex: 1 }}
+                onClick={() => { if (!officerName.trim()) { setError('Full name is required'); return } if (!serviceNumber.trim()) { setError(profile.idLabel + ' is required'); return } setError(''); setStep(3) }}
+                disabled={!officerName.trim() || !serviceNumber.trim()}>
+                Continue →
               </button>
             </div>
           </div>
@@ -411,12 +376,12 @@ export default function OnboardingWizard() {
         {step === 3 && (
           <div className="card fade-up" style={{ padding: '24px' }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Destinations</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Locations visitors go to inside your facility. Pre-filled for your sector — edit freely.</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Where visitors go inside your facility. Pre-filled for {SECTORS.find(s => s.value === sector)?.label} — edit freely.</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
               {destinations.map((dest, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '20px', padding: '6px 12px' }}>
                   <span style={{ fontSize: '13px' }}>{dest}</span>
-                  <button onClick={() => setDestinations(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
+                  <button onClick={() => setDestinations(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: 0 }}>×</button>
                 </div>
               ))}
             </div>
@@ -427,9 +392,10 @@ export default function OnboardingWizard() {
               <button className="btn btn-outline" onClick={() => { if (newDest.trim()) { setDestinations(prev => [...prev, newDest.trim()]); setNewDest('') } }}>Add</button>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-ghost" onClick={() => setStep(2)}>← Back</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveStep3} disabled={saving}>
-                {saving ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Saving...</> : 'Continue →'}
+              <button className="btn btn-ghost" onClick={() => { setError(''); setStep(2) }}>← Back</button>
+              <button className="btn btn-primary" style={{ flex: 1 }}
+                onClick={() => { if (destinations.length === 0) { setError('Add at least one destination'); return } setError(''); setStep(4) }}>
+                Continue →
               </button>
             </div>
           </div>
@@ -439,12 +405,12 @@ export default function OnboardingWizard() {
         {step === 4 && (
           <div className="card fade-up" style={{ padding: '24px' }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Visit purposes</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Why do visitors come? Pre-filled for your sector — edit freely.</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Why visitors come. Pre-filled for {SECTORS.find(s => s.value === sector)?.label} — edit freely.</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
               {purposes.map((p, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: '20px', padding: '6px 12px' }}>
                   <span style={{ fontSize: '13px' }}>{p}</span>
-                  <button onClick={() => setPurposes(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '14px', lineHeight: 1, padding: 0 }}>×</button>
+                  <button onClick={() => setPurposes(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '16px', lineHeight: 1, padding: 0 }}>×</button>
                 </div>
               ))}
             </div>
@@ -455,9 +421,10 @@ export default function OnboardingWizard() {
               <button className="btn btn-outline" onClick={() => { if (newPurpose.trim()) { setPurposes(prev => [...prev, newPurpose.trim()]); setNewPurpose('') } }}>Add</button>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-ghost" onClick={() => setStep(3)}>← Back</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveStep4} disabled={saving}>
-                {saving ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Saving...</> : 'Continue →'}
+              <button className="btn btn-ghost" onClick={() => { setError(''); setStep(3) }}>← Back</button>
+              <button className="btn btn-primary" style={{ flex: 1 }}
+                onClick={() => { if (purposes.length === 0) { setError('Add at least one purpose'); return } setError(''); setStep(5) }}>
+                Continue →
               </button>
             </div>
           </div>
@@ -467,7 +434,7 @@ export default function OnboardingWizard() {
         {step === 5 && (
           <div className="card fade-up" style={{ padding: '24px' }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>Your gates</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Add every gate or entry point. Each gets a unique URL — send to guards via WhatsApp.</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Add every gate or entry point. Each gets a unique URL for your guards.</p>
             {gates.map((gate, i) => (
               <div key={i} style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', padding: '14px', marginBottom: '10px', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -492,11 +459,22 @@ export default function OnboardingWizard() {
               onClick={() => setGates(prev => [...prev, { name: '', location: '' }])}>
               + Add another gate
             </button>
+
+            {/* Summary before final save */}
+            <div style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-md)', padding: '14px', marginBottom: '20px', fontSize: '13px' }}>
+              <div style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-2)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Review before saving</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border)' }}><span style={{ color: 'var(--text-2)' }}>Installation</span><span style={{ fontWeight: '600' }}>{installationName}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border)' }}><span style={{ color: 'var(--text-2)' }}>Sector</span><span style={{ fontWeight: '600' }}>{SECTORS.find(s => s.value === sector)?.label}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border)' }}><span style={{ color: 'var(--text-2)' }}>Officer</span><span style={{ fontWeight: '600' }}>{officerName}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border)' }}><span style={{ color: 'var(--text-2)' }}>Destinations</span><span style={{ fontWeight: '600' }}>{destinations.length} configured</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}><span style={{ color: 'var(--text-2)' }}>Gates</span><span style={{ fontWeight: '600' }}>{gates.filter(g => g.name.trim()).length} to create</span></div>
+            </div>
+
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn-ghost" onClick={() => setStep(4)}>← Back</button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveStep5}
+              <button className="btn btn-ghost" onClick={() => { setError(''); setStep(4) }}>← Back</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={saveAll}
                 disabled={saving || !gates.some(g => g.name.trim())}>
-                {saving ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Setting up...</> : 'Finish setup →'}
+                {saving ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Setting up your installation...</> : 'Complete setup →'}
               </button>
             </div>
           </div>
