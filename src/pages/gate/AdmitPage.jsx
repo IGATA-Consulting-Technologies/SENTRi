@@ -30,33 +30,39 @@ export default function AdmitPage({ gateData, tenantData }) {
   const effectiveTenant = tenant || tenantData
 
   // Load tenant custom destinations and purposes
+  // Read directly from store tenant (already freshly loaded from DB by GateApp)
   const [tenantDestinations, setTenantDestinations] = useState(null)
   const [tenantPurposes, setTenantPurposes] = useState(null)
 
   useEffect(() => {
-    async function loadConfig() {
-      // Always prefer store tenant (freshly loaded from DB) over prop
-      const activeTenant = useGuardStore.getState().tenant || tenantData
-      if (!activeTenant?.id) return
+    async function loadConfig(tenantId) {
       const { data } = await supabase
         .from('tenants')
         .select('custom_destinations, custom_purposes')
-        .eq('id', activeTenant.id)
+        .eq('id', tenantId)
         .single()
       if (data?.custom_destinations?.length > 0) setTenantDestinations(data.custom_destinations)
       if (data?.custom_purposes?.length > 0) setTenantPurposes(data.custom_purposes)
     }
-    // Wait for store to be populated if needed
-    if (useGuardStore.getState().tenant?.id) {
-      loadConfig()
-    } else {
-      const interval = setInterval(() => {
-        if (useGuardStore.getState().tenant?.id) { clearInterval(interval); loadConfig() }
-      }, 200)
-      setTimeout(() => clearInterval(interval), 5000)
-      return () => clearInterval(interval)
+
+    // Get tenant ID — try store first, then prop
+    const tid = useGuardStore.getState().tenant?.id || tenantData?.id
+    if (tid) {
+      loadConfig(tid)
+      return
     }
-  }, [effectiveTenant?.id])
+
+    // Tenant not yet in store — poll for it (handles slow load)
+    const interval = setInterval(() => {
+      const t = useGuardStore.getState().tenant
+      if (t?.id) {
+        clearInterval(interval)
+        loadConfig(t.id)
+      }
+    }, 150)
+    const timeout = setTimeout(() => clearInterval(interval), 8000)
+    return () => { clearInterval(interval); clearTimeout(timeout) }
+  }, [effectiveTenant?.id, tenant?.id])
 
   const activeDestinations = tenantDestinations || DESTINATIONS
   const activePurposes = tenantPurposes || PURPOSES

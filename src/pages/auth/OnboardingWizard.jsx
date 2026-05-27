@@ -210,17 +210,31 @@ export default function OnboardingWizard() {
     if (validGates.length === 0) { err('Add at least one gate'); return }
     setSaving(true); setError('')
 
+    // Capture slug in local variable — state closure can be stale in loops
+    const currentTenantSlug = tenantSlug
+    const currentTenantId = tenantId
+    const origin = window.location.origin
+
     const created = []
     for (const g of validGates) {
       const gSlug = g.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
         + '-' + Math.random().toString(36).slice(2, 6)
       const { data, error: gErr } = await supabase.from('gates').insert({
-        tenant_id: tenantId, name: g.name.trim(), slug: gSlug,
-        location: g.location.trim() || null, is_active: true,
+        tenant_id: currentTenantId,
+        name: g.name.trim(),
+        slug: gSlug,
+        location: g.location.trim() || null,
+        is_active: true,
       }).select().single()
-      if (data) created.push({ ...data, url: window.location.origin + '/gate/' + tenantSlug + '/' + gSlug })
-      else if (gErr) console.error('Gate error:', gErr.message)
+      if (data) {
+        const gateUrl = origin + '/gate/' + currentTenantSlug + '/' + gSlug
+        created.push({ ...data, url: gateUrl })
+        console.log('Gate created:', g.name.trim(), gateUrl)
+      } else if (gErr) {
+        console.error('Gate creation error for', g.name.trim(), ':', gErr.message)
+      }
     }
+    console.log('Total gates created:', created.length)
     setCreatedGates([...created])
 
     // Mark onboarding complete — with retry
