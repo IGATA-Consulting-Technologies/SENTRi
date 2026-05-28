@@ -16,6 +16,15 @@ function GateRoute() {
   return <GateApp tenantSlug={tenantSlug} gateSlug={gateSlug} />
 }
 
+function LoginRoute() {
+  const { isAuthenticated, officer } = useAuthStore()
+  // If already authenticated, redirect away from login
+  // This means back button from command bounces back to command
+  if (isAuthenticated && officer) return <Navigate to="/command" replace />
+  if (isAuthenticated && !officer) return <Navigate to="/onboarding" replace />
+  return <CommandLogin />
+}
+
 function CommandRoute() {
   const { isAuthenticated, officer } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
@@ -52,7 +61,7 @@ export default function App() {
       <Routes>
         <Route path="/gate/:tenantSlug/:gateSlug" element={<GateRoute />} />
         <Route path="/command/*" element={<CommandRoute />} />
-        <Route path="/login" element={<CommandLogin />} />
+        <Route path="/login" element={<LoginRoute />} />
         <Route path="/register" element={<Register />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/onboarding" element={<OnboardingRoute />} />

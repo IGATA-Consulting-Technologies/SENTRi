@@ -33,6 +33,10 @@ export const useAuthStore = create(
 
       login: async (email, password) => {
         set({ authLoading: true, authError: null })
+        // Always clear any existing session first — prevents stale session
+        // interference when switching between tenant accounts
+        try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
+        set({ officer: null, tenant: null, isAuthenticated: false })
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
         if (authError) { set({ authLoading: false, authError: authError.message }); return { success: false } }
 

@@ -177,13 +177,16 @@ export default function OnboardingWizard() {
       }
 
       // 3. INSERT all gates
+      // Note: we don't use .select().single() after insert because RLS SELECT
+      // policy may not allow reading back immediately. Instead we build the
+      // gate object from known data and verify by checking for errors only.
       const created = []
       for (const g of validGates) {
         const gSlug = g.name.trim().toLowerCase()
           .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '')
           + '-' + Math.random().toString(36).slice(2, 6)
 
-        const { data: gate, error: gateErr } = await supabase
+        const { error: gateErr } = await supabase
           .from('gates')
           .insert({
             tenant_id: tenant.id,
@@ -192,13 +195,16 @@ export default function OnboardingWizard() {
             location: g.location.trim() || null,
             is_active: true,
           })
-          .select()
-          .single()
 
-        if (gate) {
-          created.push({ ...gate, url: origin + '/gate/' + tenantSlug + '/' + gSlug })
+        if (!gateErr) {
+          // Build gate object from known data — no select needed
+          created.push({
+            id: gSlug, // use slug as temp key for display
+            name: g.name.trim(),
+            url: origin + '/gate/' + tenantSlug + '/' + gSlug
+          })
         } else {
-          console.error('Gate error for', g.name, ':', gateErr?.message)
+          console.error('Gate error for', g.name, ':', gateErr.message)
         }
       }
 
