@@ -67,7 +67,7 @@ function generateReportHTML(data, tenantName, periodLabel) {
     { label: 'Total Movements', value: data.total, color: '#1a56db' },
     { label: 'Vehicles', value: data.vehicles, color: '#1a1a2e' },
     { label: 'Pedestrians', value: data.pedestrians, color: '#1a1a2e' },
-    { label: 'Flag Hits', value: data.flagTotal, color: data.flagTotal > 0 ? '#c0132a' : '#1a1a2e' },
+    { label: 'Flag Hits', value: data.flags, color: data.flags > 0 ? '#c0132a' : '#1a1a2e' },
     { label: 'Incidents', value: data.incidents, color: data.incidents > 0 ? '#92530a' : '#1a1a2e' },
     { label: 'Critical', value: data.criticalIncidents, color: data.criticalIncidents > 0 ? '#c0132a' : '#1a1a2e' },
     { label: 'Avg Stay (min)', value: data.avgDuration || 'N/A', color: '#1a1a2e' },

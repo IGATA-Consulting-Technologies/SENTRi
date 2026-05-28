@@ -1,60 +1,60 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [show, setShow] = useState(false)
-  const [installed, setInstalled] = useState(false)
+  const location = useLocation()
+
+  // Only show PWA install prompt on gate routes
+  const isGateRoute = location.pathname.startsWith('/gate/')
 
   useEffect(() => {
-    // Check if already installed as PWA
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setInstalled(true)
-      return
-    }
-
     const handler = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      // Show prompt after 3 seconds
-      setTimeout(() => setShow(true), 3000)
+      if (isGateRoute) setShow(true)
     }
-
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+  }, [isGateRoute])
+
+  useEffect(() => {
+    // Hide prompt if user navigates away from gate route
+    if (!isGateRoute) setShow(false)
+    else if (deferredPrompt) setShow(true)
+  }, [isGateRoute, deferredPrompt])
+
+  if (!show || !isGateRoute) return null
 
   async function install() {
     if (!deferredPrompt) return
     deferredPrompt.prompt()
     const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') {
-      setShow(false)
-      setInstalled(true)
-    }
+    if (outcome === 'accepted') setShow(false)
     setDeferredPrompt(null)
   }
 
-  if (!show || installed) return null
-
   return (
-    <div className="pwa-install-banner">
-      <div className="pwa-install-icon">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        </svg>
+    <div style={{
+      position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+      background: '#0a2218', color: 'white', borderRadius: '12px',
+      padding: '14px 18px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+      display: 'flex', alignItems: 'center', gap: '12px',
+      zIndex: 1000, maxWidth: '340px', width: 'calc(100% - 32px)'
+    }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '13px', marginBottom: '2px' }}>Install SENTRi Gate</div>
+        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>Add to home screen for offline use</div>
       </div>
-      <div className="pwa-install-text">
-        <div className="pwa-install-title">Install SENTRi</div>
-        <div className="pwa-install-sub">Add to home screen for quick access</div>
-      </div>
-      <div className="pwa-install-actions">
-        <button onClick={() => setShow(false)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '13px', padding: '4px 8px', fontFamily: 'var(--font-display)', fontWeight: '600' }}>
-          Later
-        </button>
-        <button onClick={install} className="btn btn-primary btn-sm">
-          Install
-        </button>
-      </div>
+      <button onClick={install}
+        style={{ background: '#4ade80', color: '#0a2218', border: 'none', borderRadius: '8px', padding: '8px 14px', fontFamily: 'var(--font-display)', fontWeight: '700', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
+        Install
+      </button>
+      <button onClick={() => setShow(false)}
+        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '18px', padding: '0', lineHeight: 1 }}>
+        ×
+      </button>
     </div>
   )
 }

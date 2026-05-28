@@ -102,7 +102,7 @@ export default function GateApp() {
   }
 
   if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-0)', gap: '12px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100dvh', background: 'var(--bg-0)', gap: '12px' }}>
       <div style={{ fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: '800', letterSpacing: '0.12em', color: 'var(--accent)' }}>SENTRi</div>
       <div className="spinner" style={{ width: '20px', height: '20px' }} />
     </div>
@@ -130,7 +130,7 @@ export default function GateApp() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-0)', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: '-webkit-fill-available', background: 'var(--bg-0)', overflow: 'hidden' }}>
       <header style={{ background: '#0a2218', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 16px', flexShrink: 0 }}>
         <div style={{ fontFamily: 'var(--font-display)', fontWeight: '800', fontSize: '13px', letterSpacing: '0.1em', color: '#4ade80', textTransform: 'uppercase' }}>SENTRi</div>
         <div style={{ fontWeight: '700', fontSize: '15px', color: 'white', marginTop: '1px' }}>{gate?.name}</div>
