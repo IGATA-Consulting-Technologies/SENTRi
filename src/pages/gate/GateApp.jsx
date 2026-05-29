@@ -58,9 +58,11 @@ function useGateManifest() {
 
 export default function GateApp() {
   const { tenantSlug, gateSlug } = useParams()
-  const { onShift, gate, tenant, activeTab, setActiveTab } = useGuardStore()
+  const { onShift, gate, tenant, activeTab, setActiveTab, shiftLogId, endShift } = useGuardStore()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const [ending, setEnding] = useState(false)
   useGateManifest()
 
   useEffect(() => { loadGate() }, [tenantSlug, gateSlug])
@@ -74,7 +76,6 @@ export default function GateApp() {
 
   async function loadGate() {
     setLoading(true)
-    // Always clear stored gate/tenant — load fresh from URL
     useGuardStore.getState().setTenant(null)
     useGuardStore.getState().setGate(null)
 
@@ -89,9 +90,7 @@ export default function GateApp() {
     useGuardStore.getState().setTenant(tenantData)
     useGuardStore.getState().setGate(gateData)
 
-    // SHIFT VALIDATION — if a shift is persisted, verify it belongs to THIS gate.
-    // If the stored shiftGateId doesn't match this gate's id, it's a stale shift
-    // from a different gate or installation. Clear it so guard must start fresh.
+    // Validate persisted shift belongs to this gate
     const stored = useGuardStore.getState()
     if (stored.onShift && stored.shiftGateId && stored.shiftGateId !== gateData.id) {
       console.log('Stale shift detected from different gate — clearing.')
@@ -99,6 +98,24 @@ export default function GateApp() {
     }
 
     setLoading(false)
+  }
+
+  // End shift from the header exit button — logs to shift_logs then clears store
+  async function handleHeaderExit() {
+    setEnding(true)
+    try {
+      if (shiftLogId) {
+        await supabase.from('shift_logs').update({
+          shift_end: new Date().toISOString(),
+          notes: 'Session ended at ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+        }).eq('id', shiftLogId)
+      }
+    } catch (e) {
+      console.error('Shift log update error:', e)
+    }
+    endShift()
+    setShowExitConfirm(false)
+    setEnding(false)
   }
 
   if (loading) return (
@@ -131,12 +148,42 @@ export default function GateApp() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: '-webkit-fill-available', background: 'var(--bg-0)', overflow: 'hidden' }}>
-      <header style={{ background: '#0a2218', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 16px', flexShrink: 0 }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: '800', fontSize: '13px', letterSpacing: '0.1em', color: '#4ade80', textTransform: 'uppercase' }}>SENTRi</div>
-        <div style={{ fontWeight: '700', fontSize: '15px', color: 'white', marginTop: '1px' }}>{gate?.name}</div>
-        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{tenant?.name}</div>
+
+      {/* Header — always visible, sign-out button top right */}
+      <header style={{ background: '#0a2218', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '12px 16px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-display)', fontWeight: '800', fontSize: '13px', letterSpacing: '0.1em', color: '#4ade80', textTransform: 'uppercase' }}>SENTRi</div>
+          <div style={{ fontWeight: '700', fontSize: '15px', color: 'white', marginTop: '1px' }}>{gate?.name}</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{tenant?.name}</div>
+        </div>
+
+        {/* Sign-out button — power icon, top right of header */}
+        <button
+          onClick={() => setShowExitConfirm(true)}
+          title="End shift"
+          style={{
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: '10px',
+            width: '40px', height: '40px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
+            transition: 'background 0.15s'
+          }}
+          onTouchStart={e => e.currentTarget.style.background = 'rgba(192,19,42,0.3)'}
+          onTouchEnd={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+        >
+          {/* Power / exit icon */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
       </header>
+
       <main style={{ flex: 1, overflowY: 'auto' }}>{renderContent()}</main>
+
       <nav style={{ display: 'flex', background: 'var(--bg-1)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
         {TABS.map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
@@ -153,6 +200,68 @@ export default function GateApp() {
           </button>
         ))}
       </nav>
+
+      {/* Exit confirmation overlay */}
+      {showExitConfirm && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          zIndex: 1000, padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-1)', borderRadius: '18px', padding: '24px',
+            width: '100%', maxWidth: '400px',
+            boxShadow: '0 -4px 40px rgba(0,0,0,0.3)'
+          }} className="fade-up">
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '50%',
+                background: 'rgba(192,19,42,0.12)', border: '1.5px solid rgba(192,19,42,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 12px'
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0132a" strokeWidth="2" strokeLinecap="round">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+              </div>
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: '700', marginBottom: '6px' }}>
+                End your shift?
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-2)', lineHeight: '1.5' }}>
+                Your shift will be closed and logged. Use the Shift tab if you want to record a handover to the incoming guard.
+              </p>
+            </div>
+
+            <button
+              onClick={handleHeaderExit}
+              disabled={ending}
+              style={{
+                width: '100%', padding: '14px', marginBottom: '10px',
+                background: '#c0132a', color: 'white', border: 'none',
+                borderRadius: '12px', fontSize: '15px', fontWeight: '700',
+                fontFamily: 'var(--font-display)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+              }}>
+              {ending
+                ? <><div className="spinner" style={{ width: '16px', height: '16px', borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} /> Ending shift...</>
+                : 'Yes, end my shift'}
+            </button>
+
+            <button
+              onClick={() => setShowExitConfirm(false)}
+              style={{
+                width: '100%', padding: '13px',
+                background: 'transparent', color: 'var(--text-2)',
+                border: '1.5px solid var(--border-med)', borderRadius: '12px',
+                fontSize: '14px', fontWeight: '600', fontFamily: 'var(--font-display)', cursor: 'pointer'
+              }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
