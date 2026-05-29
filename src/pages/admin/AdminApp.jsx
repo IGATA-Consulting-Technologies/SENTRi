@@ -181,6 +181,8 @@ function TenantsTab() {
   const [form, setForm] = useState({ name: '', sector: 'military', city: '', state: '' })
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)  // tenant pending deletion
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -201,17 +203,19 @@ function TenantsTab() {
     load()
   }
 
-  async function deleteTenant(t) {
-    const confirmed = window.confirm(
-      'Permanently delete ' + t.name + '?\n\nThis will delete all gates, officers, movements, incidents and flag alerts. This cannot be undone.'
-    )
-    if (!confirmed) return
-    await supabase.from('flag_alerts').delete().eq('tenant_id', t.id)
-    await supabase.from('incidents').delete().eq('tenant_id', t.id)
-    await supabase.from('movements').delete().eq('tenant_id', t.id)
-    await supabase.from('gates').delete().eq('tenant_id', t.id)
-    await supabase.from('officers').delete().eq('tenant_id', t.id)
-    await supabase.from('tenants').delete().eq('id', t.id)
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const id = deleteTarget.id
+    await supabase.from('flag_alerts').delete().eq('tenant_id', id)
+    await supabase.from('incidents').delete().eq('tenant_id', id)
+    await supabase.from('movements').delete().eq('tenant_id', id)
+    await supabase.from('gates').delete().eq('tenant_id', id)
+    await supabase.from('officers').delete().eq('tenant_id', id)
+    const { error } = await supabase.from('tenants').delete().eq('id', id)
+    if (error) { console.error('Delete failed:', error.message) }
+    setDeleting(false)
+    setDeleteTarget(null)
     load()
   }
 
@@ -319,7 +323,11 @@ function TenantsTab() {
                 ? <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => deactivate(t)}>Deactivate</button>
                 : <button className="btn btn-sm" style={{ background: 'var(--green)', color: 'white', border: 'none' }} onClick={() => reactivate(t)}>Reactivate</button>
               }
-              <button className="btn btn-ghost btn-sm" style={{ color: '#c0132a', fontSize: '11px' }} onClick={() => deleteTenant(t)}>Delete</button>
+              <button
+                style={{ background: '#c0132a', color: 'white', border: 'none', borderRadius: '8px', padding: '5px 12px', fontSize: '12px', fontWeight: '700', fontFamily: 'var(--font-display)', cursor: 'pointer' }}
+                onClick={() => setDeleteTarget(t)}>
+                Delete
+              </button>
             </div>
           </div>
         </div>
