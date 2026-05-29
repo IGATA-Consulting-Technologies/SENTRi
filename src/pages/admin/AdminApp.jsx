@@ -183,6 +183,7 @@ function TenantsTab() {
   const [formError, setFormError] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)  // tenant pending deletion
   const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -206,16 +207,20 @@ function TenantsTab() {
   async function confirmDelete() {
     if (!deleteTarget) return
     setDeleting(true)
+    setDeleteError('')
     const id = deleteTarget.id
-    await supabase.from('flag_alerts').delete().eq('tenant_id', id)
-    await supabase.from('incidents').delete().eq('tenant_id', id)
-    await supabase.from('movements').delete().eq('tenant_id', id)
-    await supabase.from('gates').delete().eq('tenant_id', id)
-    await supabase.from('officers').delete().eq('tenant_id', id)
+    // All child tables have ON DELETE CASCADE set at DB level.
+    // Single delete on tenants cascades to gates, officers, movements,
+    // incidents, flag_alerts, shift_logs, watchlist automatically.
     const { error } = await supabase.from('tenants').delete().eq('id', id)
-    if (error) { console.error('Delete failed:', error.message) }
     setDeleting(false)
+    if (error) {
+      console.error('Delete failed:', error.message)
+      setDeleteError(error.message)
+      return  // keep modal open so user sees the error
+    }
     setDeleteTarget(null)
+    setDeleteError('')
     load()
   }
 
