@@ -263,18 +263,20 @@ export default function ReportTab() {
     const prevSince = new Date(Date.now() - days * 2 * 24 * 60 * 60 * 1000).toISOString()
 
     try {
-      const [movRes, incRes, repRes, flagRes, prevMovRes] = await Promise.all([
+      const [movRes, incRes, repRes, flagRes, prevMovRes, shiftRes] = await Promise.all([
         supabase.from('movements').select('id,type,entry_time,exit_time,duration_minutes,flag_triggered,destination,purpose,gate_id,gates(name)').eq('tenant_id', tenant.id).gte('entry_time', since),
         supabase.from('incidents').select('id,type,severity,status,created_at').eq('tenant_id', tenant.id).gte('created_at', since),
         supabase.from('v_repeat_visitors').select('*').eq('tenant_id', tenant.id).order('visit_count', { ascending: false }).limit(15),
         supabase.from('flag_alerts').select('id,acknowledged,alerted_at').eq('tenant_id', tenant.id).gte('alerted_at', since),
         supabase.from('movements').select('id,type,flag_triggered').eq('tenant_id', tenant.id).gte('entry_time', prevSince).lt('entry_time', since),
+        supabase.from('shift_logs').select('officer_name,service_number,shift_start,shift_end,gate_id,gates(name)').eq('tenant_id', tenant.id).gte('shift_start', since).order('shift_start', { ascending: false }),
       ])
 
       const movements = movRes.data || []
       const incidents = incRes.data || []
       const flagAlerts = flagRes.data || []
       const prevMovements = prevMovRes.data || []
+      const shiftLogs = shiftRes.data || []
 
       // By day
       const byDayMap = {}
@@ -364,6 +366,7 @@ export default function ReportTab() {
         dailyAvg,
         offHours,
         incomplete,
+        shiftLogs,
         prev: {
           total: prevMovements.length,
           vehicles: prevMovements.filter(m => m.type === 'vehicle').length,
@@ -442,7 +445,7 @@ export default function ReportTab() {
       ) : (
         <div>
           {/* Summary stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
             {[
               { label: 'Total', value: data.total, color: 'var(--accent)' },
               { label: 'Vehicles', value: data.vehicles },
@@ -553,22 +556,76 @@ export default function ReportTab() {
             </div>
           )}
 
-          {/* Daily breakdown */}
+
+          {/* Guard Shift Log */}
+          {data.shiftLogs?.length > 0 && (
+            <div className="card" style={{ marginBottom: '20px' }}>
+              <div className="section-label" style={{ marginBottom: '12px' }}>Guard Shift Log</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <colgroup>
+                  <col />
+                  <col style={{ width: '100px' }} />
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '64px' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
+                    {[['Officer','left'],['Gate','left'],['Start','left'],['End','left'],['Duration','right']].map(([h,a]) => (
+                      <th key={h} style={{ padding: '0 4px 8px', textAlign: a, fontSize: '10px', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', fontWeight: '600' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.shiftLogs.map((s, i) => {
+                    const durMins = s.shift_start && s.shift_end ? Math.round((new Date(s.shift_end) - new Date(s.shift_start)) / 60000) : null
+                    const dur = durMins ? (durMins < 60 ? durMins + 'min' : Math.floor(durMins/60) + 'h ' + (durMins%60) + 'm') : '—'
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px 4px', fontSize: '13px', fontWeight: '600' }}>{s.officer_name || '—'}</td>
+                        <td style={{ padding: '8px 4px', fontSize: '12px', color: 'var(--text-2)' }}>{s.gates?.name || '—'}</td>
+                        <td style={{ padding: '8px 4px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>{new Date(s.shift_start).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</td>
+                        <td style={{ padding: '8px 4px', fontSize: '12px', fontFamily: 'var(--font-mono)', color: s.shift_end ? 'var(--text-1)' : 'var(--green)' }}>{s.shift_end ? new Date(s.shift_end).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : 'Active'}</td>
+                        <td style={{ padding: '8px 4px', fontSize: '12px', fontFamily: 'var(--font-mono)', textAlign: 'right', color: 'var(--text-2)' }}>{dur}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Daily breakdown — proper table for perfect column alignment */}
           {data.byDay.length > 0 && (
             <div className="card" style={{ marginBottom: '20px' }}>
               <div className="section-label" style={{ marginBottom: '12px' }}>Daily Breakdown</div>
-              <div style={{ fontSize: '11px', color: 'var(--text-2)', display: 'grid', gridTemplateColumns: '1fr repeat(4, auto)', gap: '0 16px', padding: '0 0 6px', borderBottom: '1px solid var(--border)', marginBottom: '4px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <span>Date</span><span>Total</span><span>Vehicles</span><span>Peds</span><span>Flags</span>
-              </div>
-              {data.byDay.map(d => (
-                <div key={d.date} style={{ display: 'grid', gridTemplateColumns: '1fr repeat(4, auto)', gap: '0 16px', padding: '7px 0', borderBottom: '1px solid var(--border)', fontSize: '13px', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-1)' }}>{new Date(d.date).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-                  <span style={{ fontWeight: '600', fontFamily: 'var(--font-mono)' }}>{d.total}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{d.vehicles}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{d.pedestrians}</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', color: d.flags > 0 ? 'var(--red)' : 'var(--text-2)', fontWeight: d.flags > 0 ? '700' : '400' }}>{d.flags}</span>
-                </div>
-              ))}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <colgroup>
+                  <col />
+                  <col style={{ width: '52px' }} />
+                  <col style={{ width: '68px' }} />
+                  <col style={{ width: '48px' }} />
+                  <col style={{ width: '48px' }} />
+                </colgroup>
+                <thead>
+                  <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
+                    {[['Date','left'],['Total','right'],['Vehicles','right'],['Peds','right'],['Flags','right']].map(([h,a]) => (
+                      <th key={h} style={{ padding: '0 4px 8px', textAlign: a, fontSize: '10px', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', fontWeight: '600' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byDay.map(d => (
+                    <tr key={d.date} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 4px', fontSize: '13px', color: 'var(--text-1)' }}>{new Date(d.date).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' })}</td>
+                      <td style={{ padding: '8px 4px', textAlign: 'right', fontWeight: '700', fontFamily: 'var(--font-mono)', fontSize: '13px' }}>{d.total}</td>
+                      <td style={{ padding: '8px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-2)' }}>{d.vehicles}</td>
+                      <td style={{ padding: '8px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-2)' }}>{d.pedestrians}</td>
+                      <td style={{ padding: '8px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: d.flags > 0 ? '700' : '400', color: d.flags > 0 ? 'var(--red)' : 'var(--text-2)' }}>{d.flags}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
