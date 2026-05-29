@@ -20,7 +20,6 @@ export const useAuthStore = create(
             .from('officers').select('*, tenants(*)')
             .eq('id', session.user.id).eq('is_active', true).single()
           if (!officerData) {
-            // Authenticated but no officer record yet — new account in wizard
             set({ isAuthenticated: true, officer: null, tenant: null })
             return
           }
@@ -33,8 +32,6 @@ export const useAuthStore = create(
 
       login: async (email, password) => {
         set({ authLoading: true, authError: null })
-        // Always clear any existing session first — prevents stale session
-        // interference when switching between tenant accounts
         try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
         set({ officer: null, tenant: null, isAuthenticated: false })
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
@@ -45,7 +42,6 @@ export const useAuthStore = create(
           .eq('id', authData.user.id).eq('is_active', true).single()
 
         if (!officerData) {
-          // Valid auth user but no officer profile — send to onboarding
           set({ isAuthenticated: true, officer: null, tenant: null, authLoading: false, authError: null })
           return { success: true, newAccount: true }
         }
@@ -61,7 +57,6 @@ export const useAuthStore = create(
         return { success: true, role: officerData.role, tenantId: officerData.tenant_id, onboardingComplete }
       },
 
-      // Called during wizard to populate store as records are created
       setTenantAndOfficer: (tenant, officer) => set({ tenant, officer }),
 
       logout: async () => {
@@ -91,6 +86,7 @@ export const useGuardStore = create(
       tenant: null,
       shiftStart: null,
       shiftLogId: null,
+      shiftGateId: null,   // persisted — used to validate shift belongs to this gate
       activeTab: 'admit',
       setTenant: (tenant) => set({ tenant }),
       setGate: (gate) => set({ gate }),
@@ -98,22 +94,24 @@ export const useGuardStore = create(
       setOnline: (val) => set({ isOnline: val }),
       startShift: (guard, gate, tenant, shiftLogId) => set({
         onShift: true, guard, gate, tenant, shiftLogId,
+        shiftGateId: gate?.id || null,   // record which gate this shift belongs to
         shiftStart: new Date().toISOString(), activeTab: 'admit',
       }),
       endShift: () => set({
-        onShift: false, guard: null, shiftLogId: null, shiftStart: null, activeTab: 'admit',
+        onShift: false, guard: null, shiftLogId: null,
+        shiftStart: null, shiftGateId: null, activeTab: 'admit',
       }),
     }),
     {
       name: 'sentri-guard-shift',
-      // IMPORTANT: gate and tenant are NOT persisted.
-      // They are always loaded fresh from Supabase via the gate URL.
-      // Only shift identity and timing is persisted.
+      // gate and tenant are NOT persisted — always loaded fresh from Supabase via URL.
+      // shiftGateId IS persisted — used to detect stale shifts from other gates.
       partialize: (state) => ({
         onShift: state.onShift,
         guard: state.guard,
         shiftStart: state.shiftStart,
         shiftLogId: state.shiftLogId,
+        shiftGateId: state.shiftGateId,
         activeTab: state.activeTab,
       }),
     }

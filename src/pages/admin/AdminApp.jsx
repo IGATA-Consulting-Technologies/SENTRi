@@ -60,7 +60,7 @@ function LoginScreen({ onAuth }) {
 // ── Overview Tab ──
 function OverviewTab() {
   const [stats, setStats] = useState(null)
-  const [recentMovements, setRecentMovements] = useState([])
+  const [gateFeed, setGateFeed] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { load() }, [])
@@ -81,7 +81,7 @@ function OverviewTab() {
       supabase.from('gates').select('id', { count: 'exact' }).eq('is_active', true),
       supabase.from('flag_alerts').select('id', { count: 'exact' }),
       supabase.from('tenants').select('id', { count: 'exact' }).eq('is_active', false),
-      supabase.from('movements').select('id,plate_number,visitor_name,type,entry_time,flag_triggered,tenants(name),gates(name)').order('entry_time', { ascending: false }).limit(10)
+      supabase.from('movements').select('id,type,entry_time,flag_triggered,tenants(name),gates(name)').order('entry_time', { ascending: false }).limit(10)
     ])
 
     setStats({
@@ -99,7 +99,7 @@ function OverviewTab() {
       activeGates: gates.count || 0,
       totalFlags: flags.count || 0,
     })
-    setRecentMovements(recent.data || [])
+    setGateFeed(recent.data || [])
     setLoading(false)
   }
 
@@ -207,6 +207,21 @@ function TenantsTab() {
     load()
   }
 
+  async function deleteTenant(t) {
+    const confirmed = window.confirm(
+      'Permanently delete ' + t.name + '?\n\nThis will delete all gates, officers, movements, incidents and flag alerts for this installation. This cannot be undone.'
+    )
+    if (!confirmed) return
+    // Delete in dependency order
+    await supabase.from('flag_alerts').delete().eq('tenant_id', t.id)
+    await supabase.from('incidents').delete().eq('tenant_id', t.id)
+    await supabase.from('movements').delete().eq('tenant_id', t.id)
+    await supabase.from('gates').delete().eq('tenant_id', t.id)
+    await supabase.from('officers').delete().eq('tenant_id', t.id)
+    await supabase.from('tenants').delete().eq('id', t.id)
+    load()
+  }
+
   async function updatePlan(t, plan) {
     await supabase.from('tenants').update({ plan }).eq('id', t.id)
     load()
@@ -220,7 +235,7 @@ function TenantsTab() {
     const { error } = await supabase.from('tenants').insert({
       name: form.name.trim(), slug, sector: form.sector,
       city: form.city.trim(), state: form.state.trim(),
-      plan: form.plan, is_active: true,
+      is_active: true,
       custom_destinations: [], custom_purposes: [], onboarding_complete: false
     })
     setSaving(false)
@@ -306,7 +321,7 @@ function TenantsTab() {
                 {t.city && t.state ? t.city + ', ' + t.state : t.slug}
               </div>
               <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-2)' }}>
-                <span>🚪 {(t.gates || []).length} gates</span>
+                <span>🚪 {(t.gates || []).length} {(t.gates || []).length === 1 ? 'gate' : 'gates'}</span>
                 <span>👮 {(t.officers || []).length} officers</span>
                 <span>📊 {(t.movements || []).length} movements</span>
               </div>
@@ -317,6 +332,7 @@ function TenantsTab() {
                 ? <button className="btn btn-ghost btn-sm" style={{ color: 'var(--red)' }} onClick={() => deactivate(t)}>Deactivate</button>
                 : <button className="btn btn-sm" style={{ background: 'var(--green)', color: 'white', border: 'none' }} onClick={() => activate(t)}>Reactivate</button>
               }
+              <button className="btn btn-ghost btn-sm" style={{ color: '#c0132a', fontSize: '11px' }} onClick={() => deleteTenant(t)}>Delete</button>
             </div>
           </div>
         </div>

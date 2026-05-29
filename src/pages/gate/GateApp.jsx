@@ -32,24 +32,17 @@ async function syncOfflineQueue() {
   try {
     const unsynced = await getUnsyncedMovements()
     if (!unsynced.length) return
-    console.log('Syncing', unsynced.length, 'offline entries...')
     for (const item of unsynced) {
       const movement = item.data || item
       const { localId, synced, queuedAt, action, ...cleanMovement } = movement
       const { error } = await supabase.from('movements').insert(cleanMovement)
-      if (!error) {
-        await markSynced(item.localId)
-        console.log('Synced entry:', cleanMovement.plate_number || cleanMovement.visitor_name)
-      } else {
-        console.error('Sync failed for entry:', error.message)
-      }
+      if (!error) await markSynced(item.localId)
     }
   } catch (e) {
     console.error('Sync engine error:', e)
   }
 }
 
-// Swap manifest for gate PWA
 function useGateManifest() {
   useEffect(() => {
     let link = document.querySelector('link[rel="manifest"]')
@@ -68,23 +61,20 @@ export default function GateApp() {
   const { onShift, gate, tenant, activeTab, setActiveTab } = useGuardStore()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  useGateManifest()
 
   useEffect(() => { loadGate() }, [tenantSlug, gateSlug])
 
-  // Sync offline queue on load and when coming back online
   useEffect(() => {
     if (navigator.onLine) syncOfflineQueue()
-    const handleOnline = () => {
-      console.log('Back online — syncing queue...')
-      syncOfflineQueue()
-    }
+    const handleOnline = () => syncOfflineQueue()
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   async function loadGate() {
     setLoading(true)
-    // Always clear stored gate/tenant first — prevents cached data from wrong tenant showing
+    // Always clear stored gate/tenant — load fresh from URL
     useGuardStore.getState().setTenant(null)
     useGuardStore.getState().setGate(null)
 
@@ -98,6 +88,16 @@ export default function GateApp() {
 
     useGuardStore.getState().setTenant(tenantData)
     useGuardStore.getState().setGate(gateData)
+
+    // SHIFT VALIDATION — if a shift is persisted, verify it belongs to THIS gate.
+    // If the stored shiftGateId doesn't match this gate's id, it's a stale shift
+    // from a different gate or installation. Clear it so guard must start fresh.
+    const stored = useGuardStore.getState()
+    if (stored.onShift && stored.shiftGateId && stored.shiftGateId !== gateData.id) {
+      console.log('Stale shift detected from different gate — clearing.')
+      useGuardStore.getState().endShift()
+    }
+
     setLoading(false)
   }
 
