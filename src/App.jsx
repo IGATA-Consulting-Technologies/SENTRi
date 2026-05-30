@@ -11,6 +11,31 @@ import OnboardingWizard from './pages/auth/OnboardingWizard'
 import NotFound from './pages/NotFound'
 import PWAInstallPrompt from './components/PWAInstallPrompt'
 
+
+// When the PWA launches at /gate/ (start_url), redirect to the last used gate URL
+function GateRedirect() {
+  
+  useEffect(() => {
+    try {
+      const lastUrl = localStorage.getItem('sentri-last-gate-url')
+      if (lastUrl && lastUrl.startsWith('/gate/') && lastUrl.length > 7) {
+        window.location.replace(lastUrl)
+      }
+    } catch(e) { /* ignore */ }
+  }, [])
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100dvh', background: '#0a2218', gap: '16px', padding: '24px', textAlign: 'center' }}>
+      <div style={{ fontFamily: 'sans-serif', fontWeight: '800', fontSize: '24px', letterSpacing: '0.1em', color: '#4ade80' }}>SENTRi</div>
+      <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', lineHeight: '1.6' }}>
+        Opening your gate...
+      </p>
+      <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', lineHeight: '1.6' }}>
+        If nothing happens, open your gate link directly from WhatsApp or your browser.
+      </p>
+    </div>
+  )
+}
+
 function GateRoute() {
   const { tenantSlug, gateSlug } = useParams()
   return <GateApp tenantSlug={tenantSlug} gateSlug={gateSlug} />
@@ -59,6 +84,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/gate/" element={<GateRedirect />} />
         <Route path="/gate/:tenantSlug/:gateSlug" element={<GateRoute />} />
         <Route path="/command/*" element={<CommandRoute />} />
         <Route path="/login" element={<LoginRoute />} />
