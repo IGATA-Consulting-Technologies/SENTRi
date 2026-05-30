@@ -5,12 +5,14 @@ import { LiveTab, WatchlistTab, AlertsTab, ProfileTab } from './tabs'
 import IncidentsTab from './IncidentsTab'
 import ReportTab from './ReportTab'
 import GatesTab from './GatesTab'
+import HistoryTab from './HistoryTab'
 
 const TABS = [
   { key: 'live', label: 'Live' },
   { key: 'watchlist', label: 'Watchlist' },
   { key: 'alerts', label: 'Alerts' },
   { key: 'incidents', label: 'Incidents' },
+  { key: 'history', label: 'History' },
   { key: 'report', label: 'Report' },
   { key: 'gates', label: 'Gates' },
   { key: 'profile', label: 'Profile' },
@@ -48,6 +50,7 @@ export default function CommandApp() {
       case 'watchlist': return <WatchlistTab />
       case 'alerts': return <AlertsTab onUnreadChange={setAlertCount} />
       case 'incidents': return <IncidentsTab onCountChange={fetchCounts} />
+      case 'history': return <HistoryTab />
       case 'report': return <ReportTab />
       case 'gates': return <GatesTab />
       case 'profile': return <ProfileTab />
