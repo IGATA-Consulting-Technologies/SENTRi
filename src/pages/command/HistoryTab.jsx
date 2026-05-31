@@ -17,64 +17,112 @@ function fmtDuration(mins) {
   if (mins < 60) return mins + ' min'
   const h = Math.floor(mins / 60)
   const m = mins % 60
-  return h + 'h ' + (m > 0 ? m + 'm' : '')
+  return h + 'h' + (m > 0 ? ' ' + m + 'm' : '')
+}
+function todayStr() { return new Date().toISOString().split('T')[0] }
+function daysAgoStr(n) { return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }
+
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 660)
+  useEffect(() => {
+    const fn = () => setIsDesktop(window.innerWidth >= 660)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
+  }, [])
+  return isDesktop
 }
 
-function todayStr() {
-  return new Date().toISOString().split('T')[0]
-}
-function daysAgoStr(n) {
-  return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-}
-
-// ── Movement detail modal ────────────────────────────────────────────────────
-function MovementDetail({ movement, onClose }) {
-  const isInside = !movement.exit_time
+function OfficerBadge({ officer, label }) {
+  if (!officer) return null
+  const name = [officer.rank, officer.name].filter(Boolean).join(' ')
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-      zIndex: 1000, padding: '0'
-    }} onClick={onClose}>
+      display: 'flex', alignItems: 'center', gap: '8px',
+      padding: '10px 0', borderBottom: '1px solid var(--border)'
+    }}>
       <div style={{
-        background: 'var(--bg-0)', borderRadius: '20px 20px 0 0',
-        width: '100%', maxWidth: '600px', maxHeight: '85vh',
-        overflowY: 'auto', padding: '0 0 32px'
-      }} onClick={e => e.stopPropagation()}>
+        width: '28px', height: '28px', borderRadius: '50%',
+        background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+      }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <div style={{ fontSize: '10px', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', marginBottom: '1px' }}>{label}</div>
+        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-0)' }}>{name}</div>
+      </div>
+    </div>
+  )
+}
 
-        {/* Handle bar */}
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 4px' }}>
-          <div style={{ width: '40px', height: '4px', background: 'var(--border-med)', borderRadius: '2px' }} />
-        </div>
+function MovementDetail({ movement, onClose }) {
+  const isInside = !movement.exit_time
+  const isDesktop = useIsDesktop()
+
+  const overlayStyle = {
+    position: 'fixed', inset: 0,
+    background: isDesktop ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: isDesktop ? 'center' : 'flex-end',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: isDesktop ? '24px' : '0'
+  }
+
+  const cardStyle = {
+    background: 'var(--bg-0)',
+    borderRadius: isDesktop ? '16px' : '20px 20px 0 0',
+    width: '100%',
+    maxWidth: isDesktop ? '520px' : '100%',
+    maxHeight: isDesktop ? '85vh' : '92vh',
+    overflowY: 'auto',
+    paddingBottom: '28px',
+    boxShadow: isDesktop
+      ? '0 24px 64px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.1)'
+      : '0 -4px 40px rgba(0,0,0,0.12)'
+  }
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={cardStyle} onClick={e => e.stopPropagation()}>
+
+        {/* Drag handle — mobile only */}
+        {!isDesktop && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 2px' }}>
+            <div style={{ width: '36px', height: '4px', background: 'var(--border-med)', borderRadius: '2px' }} />
+          </div>
+        )}
 
         {/* Header */}
         <div style={{
-          padding: '12px 20px 16px',
+          padding: isDesktop ? '20px 24px 16px' : '14px 20px 14px',
           borderBottom: '1px solid var(--border)',
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between'
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px',
+          position: 'sticky', top: 0, background: 'var(--bg-0)', zIndex: 1
         }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
               {movement.plate_number && (
-                <span style={{
-                  fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '20px',
-                  letterSpacing: '0.08em', color: 'var(--text-0)'
-                }}>{movement.plate_number}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: isDesktop ? '22px' : '20px', letterSpacing: '0.08em', color: 'var(--text-0)' }}>
+                  {movement.plate_number}
+                </span>
               )}
               {movement.visitor_name && (
-                <span style={{ fontWeight: '700', fontSize: '18px', color: 'var(--text-0)' }}>
+                <span style={{ fontWeight: '700', fontSize: isDesktop ? '20px' : '18px', color: 'var(--text-0)' }}>
                   {movement.visitor_name}
                 </span>
               )}
-              <span className={'pill ' + (movement.type === 'vehicle' ? 'pill-blue' : 'pill-gray')} style={{ fontSize: '10px' }}>
+              {!movement.plate_number && !movement.visitor_name && (
+                <span style={{ fontWeight: '600', fontSize: '16px', color: 'var(--text-2)' }}>Unknown</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '4px' }}>
+              <span className={'pill ' + (movement.type === 'vehicle' ? 'pill-blue' : 'pill-gray')} style={{ fontSize: '11px' }}>
                 {movement.type === 'vehicle' ? 'Vehicle' : 'Pedestrian'}
               </span>
-              {movement.flag_triggered && (
-                <span className="pill pill-red" style={{ fontSize: '10px' }}>Flagged</span>
-              )}
-              {isInside && (
-                <span className="pill pill-green" style={{ fontSize: '10px' }}>Still inside</span>
-              )}
+              {movement.flag_triggered && <span className="pill pill-red" style={{ fontSize: '11px' }}>Flagged</span>}
+              {isInside && <span className="pill pill-green" style={{ fontSize: '11px' }}>Still inside</span>}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
               {movement.gates?.name} · {fmtDate(movement.entry_time)}
@@ -82,7 +130,7 @@ function MovementDetail({ movement, onClose }) {
           </div>
           <button onClick={onClose} style={{
             background: 'var(--bg-2)', border: 'none', borderRadius: '50%',
-            width: '32px', height: '32px', cursor: 'pointer', flexShrink: 0,
+            width: '34px', height: '34px', cursor: 'pointer', flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2.5">
@@ -91,25 +139,34 @@ function MovementDetail({ movement, onClose }) {
           </button>
         </div>
 
-        {/* Time row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1px', background: 'var(--border)', margin: '0 0 1px' }}>
+        {/* Time stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', background: 'var(--bg-2)', borderBottom: '1px solid var(--border)' }}>
           {[
-            { label: 'Time In', value: fmtTime(movement.entry_time) },
-            { label: 'Time Out', value: movement.exit_time ? fmtTime(movement.exit_time) : 'Still inside' },
-            { label: 'Duration', value: fmtDuration(movement.duration_minutes) },
-          ].map(f => (
-            <div key={f.label} style={{ background: 'var(--bg-1)', padding: '14px 16px' }}>
-              <div style={{ fontSize: '10px', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>{f.label}</div>
-              <div style={{ fontSize: '15px', fontWeight: '700', fontFamily: 'var(--font-display)', color: f.label === 'Time Out' && isInside ? 'var(--green)' : 'var(--text-0)' }}>{f.value}</div>
+            { label: 'Time In', value: fmtTime(movement.entry_time), highlight: false },
+            { label: 'Time Out', value: movement.exit_time ? fmtTime(movement.exit_time) : 'Still inside', highlight: isInside },
+            { label: 'Duration', value: fmtDuration(movement.duration_minutes), highlight: false },
+          ].map((f, i) => (
+            <div key={f.label} style={{
+              padding: '14px 16px',
+              borderRight: i < 2 ? '1px solid var(--border)' : 'none'
+            }}>
+              <div style={{ fontSize: '10px', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>{f.label}</div>
+              <div style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'var(--font-display)', color: f.highlight ? 'var(--green)' : 'var(--text-0)' }}>{f.value}</div>
             </div>
           ))}
         </div>
 
-        {/* Details */}
-        <div style={{ padding: '16px 20px 0' }}>
+        {/* Detail rows */}
+        <div style={{ padding: '0 ' + (isDesktop ? '24px' : '20px') }}>
+
+          {/* Officer rows */}
+          <OfficerBadge officer={movement.entry_officer} label="Admitted by" />
+          <OfficerBadge officer={movement.exit_officer} label="Checked out by" />
+
+          {/* Field rows */}
           {[
-            { label: 'Date', value: fmtDate(movement.entry_time) },
             { label: 'Gate', value: movement.gates?.name },
+            { label: 'Date', value: fmtDate(movement.entry_time) },
             { label: 'Destination', value: movement.destination },
             { label: 'Purpose', value: movement.purpose },
             { label: 'Occupants', value: movement.occupants > 1 ? movement.occupants + ' people' : null },
@@ -120,11 +177,12 @@ function MovementDetail({ movement, onClose }) {
               display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
               padding: '10px 0', borderBottom: '1px solid var(--border)', gap: '16px'
             }}>
-              <span style={{ fontSize: '12px', color: 'var(--text-2)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>{f.label}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-2)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0, paddingTop: '1px' }}>{f.label}</span>
               <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-0)', textAlign: 'right' }}>{f.value}</span>
             </div>
           ))}
 
+          {/* Flag alert banner */}
           {movement.flag_triggered && (
             <div style={{
               marginTop: '16px', background: 'rgba(192,19,42,0.06)',
@@ -146,14 +204,16 @@ function MovementDetail({ movement, onClose }) {
   )
 }
 
-// ── Movement card ────────────────────────────────────────────────────────────
 function MovementCard({ movement, onClick }) {
   const isInside = !movement.exit_time
+  const officerName = movement.entry_officer
+    ? [movement.entry_officer.rank, movement.entry_officer.name].filter(Boolean).join(' ')
+    : null
+
   return (
     <div onClick={onClick} className="card" style={{
       marginBottom: '8px', padding: '14px 16px', cursor: 'pointer',
       borderLeft: movement.flag_triggered ? '3px solid var(--red)' : isInside ? '3px solid var(--green)' : '1px solid var(--border)',
-      transition: 'box-shadow 0.15s'
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -173,16 +233,20 @@ function MovementCard({ movement, onClick }) {
             {isInside && <span className="pill pill-green" style={{ fontSize: '10px' }}>Inside</span>}
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '2px' }}>
-            {movement.gates?.name}
-            {movement.destination ? ' · ' + movement.destination : ''}
+            {movement.gates?.name}{movement.destination ? ' · ' + movement.destination : ''}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: officerName ? '2px' : 0 }}>
             {fmtDate(movement.entry_time)} · In {fmtTime(movement.entry_time)}
             {movement.exit_time ? ' · Out ' + fmtTime(movement.exit_time) : ''}
             {movement.duration_minutes ? ' · ' + fmtDuration(movement.duration_minutes) : ''}
           </div>
+          {officerName && (
+            <div style={{ fontSize: '11px', color: 'var(--text-2)', fontStyle: 'italic' }}>
+              Admitted by {officerName}
+            </div>
+          )}
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
           <span style={{
             fontSize: '10px', fontWeight: '600', fontFamily: 'var(--font-display)',
             textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -190,7 +254,7 @@ function MovementCard({ movement, onClick }) {
           }}>
             {movement.type === 'vehicle' ? '🚗' : '🚶'} {movement.type}
           </span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-2)" strokeWidth="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--border-med)" strokeWidth="2">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
         </div>
@@ -199,11 +263,9 @@ function MovementCard({ movement, onClick }) {
   )
 }
 
-// ── Main HistoryTab ──────────────────────────────────────────────────────────
 export default function HistoryTab() {
   const { tenant } = useAuthStore()
 
-  // Filters
   const [search, setSearch] = useState('')
   const [dateFrom, setDateFrom] = useState(daysAgoStr(90))
   const [dateTo, setDateTo] = useState(todayStr())
@@ -211,8 +273,6 @@ export default function HistoryTab() {
   const [typeFilter, setTypeFilter] = useState('all')
   const [flagFilter, setFlagFilter] = useState(false)
   const [gateFilter, setGateFilter] = useState('all')
-
-  // Data
   const [movements, setMovements] = useState([])
   const [gates, setGates] = useState([])
   const [loading, setLoading] = useState(true)
@@ -221,7 +281,6 @@ export default function HistoryTab() {
   const [total, setTotal] = useState(0)
   const [selected, setSelected] = useState(null)
 
-  // Load gates for filter dropdown
   useEffect(() => {
     if (!tenant?.id) return
     supabase.from('gates').select('id,name').eq('tenant_id', tenant.id).eq('is_active', true)
@@ -232,12 +291,18 @@ export default function HistoryTab() {
     if (!tenant?.id) return
     if (reset) setLoading(true)
     else setLoadingMore(true)
-
     const offset = reset ? 0 : movements.length
 
     let query = supabase
       .from('movements')
-      .select('id,type,plate_number,visitor_name,id_number,destination,purpose,occupants,notes,entry_time,exit_time,duration_minutes,flag_triggered,gate_id,gates(name)', { count: 'exact' })
+      .select(
+        'id,type,plate_number,visitor_name,id_number,destination,purpose,occupants,notes,' +
+        'entry_time,exit_time,duration_minutes,flag_triggered,gate_id,entry_officer_id,exit_officer_id,' +
+        'gates(name),' +
+        'entry_officer:officers!entry_officer_id(name,rank),' +
+        'exit_officer:officers!exit_officer_id(name,rank)',
+        { count: 'exact' }
+      )
       .eq('tenant_id', tenant.id)
       .gte('entry_time', dateFrom + 'T00:00:00')
       .lte('entry_time', dateTo + 'T23:59:59')
@@ -257,12 +322,11 @@ export default function HistoryTab() {
     }
 
     const { data, count, error } = await query
-    if (!error) {
-      const results = data || []
-      setMovements(reset ? results : prev => [...prev, ...results])
-      setTotal(count || 0)
-      setHasMore(results.length === PAGE_SIZE)
-    }
+    if (error) console.error('History fetch error:', error.message)
+    const results = data || []
+    setMovements(reset ? results : prev => [...prev, ...results])
+    setTotal(count || 0)
+    setHasMore(results.length === PAGE_SIZE)
     setLoading(false)
     setLoadingMore(false)
   }, [tenant?.id, dateFrom, dateTo, typeFilter, flagFilter, gateFilter, search])
@@ -274,28 +338,24 @@ export default function HistoryTab() {
 
   function applyQuick(key) {
     setQuickFilter(key)
-    const to = todayStr()
-    setDateTo(to)
+    setDateTo(todayStr())
     if (key === 'today') setDateFrom(todayStr())
     else if (key === '7d') setDateFrom(daysAgoStr(7))
     else if (key === '30d') setDateFrom(daysAgoStr(30))
     else if (key === '90d') setDateFrom(daysAgoStr(90))
   }
 
-  const quickBtns = [
-    { key: 'today', label: 'Today' },
-    { key: '7d', label: '7 days' },
-    { key: '30d', label: '30 days' },
-    { key: '90d', label: '90 days' },
-  ]
-
   return (
     <div style={{ padding: '20px' }}>
-      <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>History</h2>
-        <p style={{ fontSize: '13px', color: 'var(--text-2)' }}>
-          {loading ? 'Loading...' : total.toLocaleString() + ' records in selected period'}
-        </p>
+
+      {/* Header */}
+      <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+        <div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '3px' }}>History</h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-2)' }}>
+            {loading ? 'Loading...' : total.toLocaleString() + ' record' + (total !== 1 ? 's' : '') + ' in selected period'}
+          </p>
+        </div>
       </div>
 
       {/* Search */}
@@ -306,22 +366,27 @@ export default function HistoryTab() {
         </svg>
         <input
           type="text"
-          placeholder="Search plate, name, destination, purpose..."
+          placeholder="Search plate number, name, destination or purpose..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
-            width: '100%', padding: '10px 12px 10px 36px',
-            border: '1.5px solid var(--border-med)', borderRadius: 'var(--radius-md)',
+            width: '100%', padding: '11px 40px 11px 38px',
+            border: '1.5px solid var(--border-med)', borderRadius: '10px',
             fontSize: '14px', fontFamily: 'inherit', background: 'var(--bg-1)',
-            color: 'var(--text-0)', outline: 'none', boxSizing: 'border-box'
+            color: 'var(--text-0)', outline: 'none', boxSizing: 'border-box',
+            transition: 'border-color 0.15s'
           }}
+          onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+          onBlur={e => e.target.style.borderColor = 'var(--border-med)'}
         />
         {search && (
           <button onClick={() => setSearch('')} style={{
             position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
-            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', padding: '2px'
+            background: 'var(--bg-2)', border: 'none', borderRadius: '50%',
+            width: '22px', height: '22px', cursor: 'pointer', color: 'var(--text-2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0
           }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
@@ -329,37 +394,39 @@ export default function HistoryTab() {
       </div>
 
       {/* Quick date filters */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        {quickBtns.map(b => (
-          <button key={b.key} onClick={() => applyQuick(b.key)}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+        {[
+          { key: 'today', label: 'Today' },
+          { key: '7d', label: '7 days' },
+          { key: '30d', label: '30 days' },
+          { key: '90d', label: '90 days' },
+          { key: 'custom', label: 'Custom range' },
+        ].map(b => (
+          <button key={b.key} onClick={() => b.key === 'custom' ? setQuickFilter('custom') : applyQuick(b.key)}
             className={'filter-btn' + (quickFilter === b.key ? ' active' : '')}>
             {b.label}
           </button>
         ))}
-        <button onClick={() => setQuickFilter('custom')}
-          className={'filter-btn' + (quickFilter === 'custom' ? ' active' : '')}>
-          Custom range
-        </button>
       </div>
 
       {/* Custom date range */}
       {quickFilter === 'custom' && (
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '140px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--text-2)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>From</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', border: '1.5px solid var(--border-med)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: 'var(--bg-1)', color: 'var(--text-0)', outline: 'none', boxSizing: 'border-box' }} />
-          </div>
-          <div style={{ flex: 1, minWidth: '140px' }}>
-            <label style={{ fontSize: '11px', color: 'var(--text-2)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: '4px' }}>To</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              style={{ width: '100%', padding: '8px 10px', border: '1.5px solid var(--border-med)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: 'var(--bg-1)', color: 'var(--text-0)', outline: 'none', boxSizing: 'border-box' }} />
-          </div>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          {[
+            { label: 'From', value: dateFrom, onChange: e => setDateFrom(e.target.value) },
+            { label: 'To', value: dateTo, onChange: e => setDateTo(e.target.value) },
+          ].map(f => (
+            <div key={f.label} style={{ flex: 1, minWidth: '140px' }}>
+              <label style={{ fontSize: '10px', color: 'var(--text-2)', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: '4px' }}>{f.label}</label>
+              <input type="date" value={f.value} onChange={f.onChange}
+                style={{ width: '100%', padding: '8px 10px', border: '1.5px solid var(--border-med)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: 'var(--bg-1)', color: 'var(--text-0)', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Type + gate + flag filters */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      {/* Secondary filters */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
           style={{ padding: '7px 10px', border: '1.5px solid var(--border-med)', borderRadius: '8px', fontSize: '13px', fontFamily: 'inherit', background: 'var(--bg-1)', color: 'var(--text-0)', outline: 'none' }}>
           <option value="all">All types</option>
@@ -382,39 +449,46 @@ export default function HistoryTab() {
             background: flagFilter ? 'rgba(192,19,42,0.08)' : 'var(--bg-1)',
             color: flagFilter ? 'var(--red)' : 'var(--text-2)',
             fontSize: '13px', fontFamily: 'inherit', cursor: 'pointer',
-            fontWeight: flagFilter ? '700' : '400'
+            fontWeight: flagFilter ? '700' : '400', display: 'flex', alignItems: 'center', gap: '6px'
           }}>
-          {flagFilter ? '🚩 Flagged only' : '🚩 Show flagged'}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+            <line x1="4" y1="22" x2="4" y2="15"/>
+          </svg>
+          {flagFilter ? 'Flagged only' : 'Show flagged'}
         </button>
+
+        {(search || flagFilter || typeFilter !== 'all' || gateFilter !== 'all') && (
+          <button onClick={() => { setSearch(''); setFlagFilter(false); setTypeFilter('all'); setGateFilter('all') }}
+            style={{ padding: '7px 10px', borderRadius: '8px', border: 'none', background: 'none', color: 'var(--text-2)', fontSize: '12px', fontFamily: 'inherit', cursor: 'pointer' }}>
+            Clear filters
+          </button>
+        )}
       </div>
 
       {/* Results */}
       {loading ? (
-        <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-2)' }}>Loading records...</div>
+        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-2)' }}>
+          <div style={{ fontSize: '13px' }}>Loading records...</div>
+        </div>
       ) : movements.length === 0 ? (
-        <div style={{ padding: '48px', textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
-          <p style={{ color: 'var(--text-2)', fontSize: '14px' }}>No records found for this search.</p>
-          {(search || flagFilter || typeFilter !== 'all' || gateFilter !== 'all') && (
-            <button onClick={() => { setSearch(''); setFlagFilter(false); setTypeFilter('all'); setGateFilter('all') }}
-              style={{ marginTop: '12px', background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '13px', fontFamily: 'var(--font-display)', fontWeight: '600' }}>
-              Clear filters
-            </button>
-          )}
+        <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: '36px', marginBottom: '12px' }}>📋</div>
+          <p style={{ color: 'var(--text-1)', fontWeight: '600', marginBottom: '4px' }}>No records found</p>
+          <p style={{ color: 'var(--text-2)', fontSize: '13px' }}>Try adjusting your search or date range.</p>
         </div>
       ) : (
         <>
           {movements.map(m => (
             <MovementCard key={m.id} movement={m} onClick={() => setSelected(m)} />
           ))}
-
           {hasMore && (
             <button onClick={() => fetchMovements(false)} disabled={loadingMore}
               style={{
-                width: '100%', padding: '12px', marginTop: '8px',
+                width: '100%', padding: '13px', marginTop: '8px',
                 background: 'var(--bg-1)', border: '1.5px solid var(--border-med)',
                 borderRadius: '10px', fontSize: '13px', fontFamily: 'var(--font-display)',
-                fontWeight: '600', color: 'var(--text-1)', cursor: 'pointer'
+                fontWeight: '600', color: 'var(--text-1)', cursor: loadingMore ? 'not-allowed' : 'pointer'
               }}>
               {loadingMore ? 'Loading...' : 'Load more records'}
             </button>
@@ -422,7 +496,6 @@ export default function HistoryTab() {
         </>
       )}
 
-      {/* Detail modal */}
       {selected && <MovementDetail movement={selected} onClose={() => setSelected(null)} />}
     </div>
   )
