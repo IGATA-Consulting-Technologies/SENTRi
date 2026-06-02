@@ -197,6 +197,7 @@ export default function AdmitPage({ gateData, tenantData }) {
       notes: notes.trim() || null,
       entry_time: new Date().toISOString(),
       ocr_confidence: ocrResult?.confidence || null,
+      entry_officer_id: guard?.officerId || null,
       synced: navigator.onLine
     }
     try {

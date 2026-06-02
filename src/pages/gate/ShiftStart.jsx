@@ -139,6 +139,7 @@ export default function ShiftStart({ gateData, tenantData }) {
       name: guardRecord.name,
       serviceNumber: guardRecord.service_number,
       rank: guardRecord.rank || rank || '',
+      officerId: guardRecord.id || null,  // officer UUID — written to movements.entry_officer_id
     }
     try {
       const { data: shiftLog } = await supabase
