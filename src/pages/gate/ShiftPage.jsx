@@ -8,7 +8,7 @@ function dur(start) {
 }
 
 export default function ShiftPage({ gateData, tenantData }) {
-  const { guard, gate, tenant, shiftStart, shiftLogId, endShift } = useGuardStore()
+  const { guard, gate, tenant, shiftStart, shiftLogId, endShift, startShift } = useGuardStore()
   const effectiveGate = gate || gateData || useGuardStore.getState().gate
   const effectiveTenant = tenant || tenantData || useGuardStore.getState().tenant
   const [insideCount, setInsideCount] = useState(0)
@@ -35,6 +35,8 @@ export default function ShiftPage({ gateData, tenantData }) {
   async function confirmHandover() {
     if (!newServiceNum.trim() || !newName.trim()) { setError('Please enter incoming guard details.'); return }
     setLoading(true); setError('')
+
+    // 1. Close outgoing guard's shift log
     if (shiftLogId) {
       await supabase.from('shift_logs').update({
         shift_end: new Date().toISOString(),
@@ -44,9 +46,38 @@ export default function ShiftPage({ gateData, tenantData }) {
         notes: 'Handover at ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
       }).eq('id', shiftLogId)
     }
+
+    // 2. Build incoming guard object
+    const incomingGuard = {
+      name: newName.trim(),
+      serviceNumber: newServiceNum.trim().toUpperCase(),
+      rank: '',
+      officerId: null,
+    }
+
+    // 3. Create new shift log for incoming guard
+    try {
+      const { data: newShiftLog } = await supabase
+        .from('shift_logs')
+        .insert({
+          tenant_id: effectiveTenant?.id,
+          gate_id: effectiveGate?.id,
+          officer_name: newName.trim(),
+          service_number: newServiceNum.trim().toUpperCase(),
+          shift_start: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      // 4. Start new session immediately — no re-entry, no ShiftStart screen
+      startShift(incomingGuard, effectiveGate, effectiveTenant, newShiftLog?.id || null)
+    } catch (e) {
+      console.error('New shift log error:', e)
+      startShift(incomingGuard, effectiveGate, effectiveTenant, null)
+    }
+
     setLoading(false)
-    setHandoverStep(2)
-    setTimeout(() => endShift(), 2000)
+    // Session transitions directly to Admit tab for the new guard
   }
 
   async function confirmEndShift() {
