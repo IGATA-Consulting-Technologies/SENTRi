@@ -198,6 +198,7 @@ export default function AdmitPage({ gateData, tenantData }) {
       entry_time: new Date().toISOString(),
       ocr_confidence: ocrResult?.confidence || null,
       entry_officer_id: guard?.officerId || null,
+      officer_name: [guard?.rank, guard?.name].filter(Boolean).join(' ') || null,
       synced: navigator.onLine
     }
     try {

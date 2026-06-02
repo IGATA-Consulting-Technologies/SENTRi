@@ -159,9 +159,26 @@ function MovementDetail({ movement, onClose }) {
         {/* Detail rows */}
         <div style={{ padding: '0 ' + (isDesktop ? '24px' : '20px') }}>
 
-          {/* Officer rows */}
-          <OfficerBadge officer={movement.entry_officer} label="Admitted by" />
-          <OfficerBadge officer={movement.exit_officer} label="Checked out by" />
+          {/* Officer row */}
+          {movement.officer_name && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '10px 0', borderBottom: '1px solid var(--border)'
+            }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '50%',
+                background: 'var(--accent-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontSize: '10px', color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-display)', marginBottom: '1px' }}>Admitted by</div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-0)' }}>{movement.officer_name}</div>
+              </div>
+            </div>
+          )}
 
           {/* Field rows */}
           {[
@@ -206,9 +223,7 @@ function MovementDetail({ movement, onClose }) {
 
 function MovementCard({ movement, onClick }) {
   const isInside = !movement.exit_time
-  const officerName = movement.entry_officer
-    ? [movement.entry_officer.rank, movement.entry_officer.name].filter(Boolean).join(' ')
-    : null
+  const officerName = movement.officer_name || null
 
   return (
     <div onClick={onClick} className="card" style={{
@@ -297,10 +312,8 @@ export default function HistoryTab() {
       .from('movements')
       .select(
         'id,type,plate_number,visitor_name,id_number,destination,purpose,occupants,notes,' +
-        'entry_time,exit_time,duration_minutes,flag_triggered,gate_id,entry_officer_id,exit_officer_id,' +
-        'gates(name),' +
-        'entry_officer:officers!entry_officer_id(name,rank),' +
-        'exit_officer:officers!exit_officer_id(name,rank)',
+        'entry_time,exit_time,duration_minutes,flag_triggered,gate_id,' +
+        'officer_name,gates(name)',
         { count: 'exact' }
       )
       .eq('tenant_id', tenant.id)
