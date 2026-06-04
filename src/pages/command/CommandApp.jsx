@@ -5,6 +5,7 @@ import { LiveTab, WatchlistTab, AlertsTab, ProfileTab } from './tabs'
 import IncidentsTab from './IncidentsTab'
 import ReportTab from './ReportTab'
 import GatesTab from './GatesTab'
+import CCTVTab from './CCTVTab'
 import HistoryTab from './HistoryTab'
 
 const TABS = [
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'incidents', label: 'Incidents' },
   { key: 'history', label: 'History' },
   { key: 'report', label: 'Report' },
+  { key: 'cctv', label: 'CCTV' },
   { key: 'gates', label: 'Gates' },
   { key: 'profile', label: 'Profile' },
 ]
@@ -52,6 +54,7 @@ export default function CommandApp() {
       case 'incidents': return <IncidentsTab onCountChange={fetchCounts} />
       case 'history': return <HistoryTab />
       case 'report': return <ReportTab />
+      case 'cctv': return <CCTVTab />
       case 'gates': return <GatesTab />
       case 'profile': return <ProfileTab />
       default: return <LiveTab />

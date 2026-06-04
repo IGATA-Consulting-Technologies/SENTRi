@@ -181,7 +181,31 @@ export default function AdmitPage({ gateData, tenantData }) {
     }
   }
 
-  async function submit() {
+  
+// Capture gate camera snapshot at time of admission
+async function captureSnapshot(gateId, movementId) {
+  if (!gateId || !movementId) return
+  try {
+    const { data: cams } = await supabase
+      .from('cameras')
+      .select('id,url,stream_type')
+      .eq('gate_id', gateId)
+      .eq('is_active', true)
+      .in('stream_type', ['snapshot'])  // only snapshot type works for capture
+    if (!cams || cams.length === 0) return
+    // For each snapshot camera, fetch the image and store the URL + timestamp
+    const snapUrl = cams[0].url + (cams[0].url.includes('?') ? '&' : '?') + '_t=' + Date.now()
+    await supabase.from('movements').update({
+      snapshot_url: snapUrl,
+      snapshot_camera_id: cams[0].id
+    }).eq('id', movementId)
+  } catch (e) {
+    console.error('Snapshot capture error:', e)
+    // Non-blocking — never disrupts the guard flow
+  }
+}
+
+async function submit() {
     if (!destination || !purpose) return
     setSubmitting(true)
     const movement = {
@@ -206,7 +230,10 @@ export default function AdmitPage({ gateData, tenantData }) {
         const { data, error } = await supabase.from('movements').insert(movement).select().single()
         if (error) throw error
         setSubmitted(data || movement)
-        if (data?.id) checkAndAlertIfFlagged(data.id)
+        if (data?.id) {
+        checkAndAlertIfFlagged(data.id)
+        captureSnapshot(effectiveGate?.id, data.id)
+      }
       } else {
         await queueMovement({ action: 'insert', data: movement })
         setSubmitted(movement)
