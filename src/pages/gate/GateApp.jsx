@@ -95,18 +95,17 @@ export default function GateApp() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
         const track = stream.getVideoTracks()[0]
-        const caps = track.getCapabilities ? track.getCapabilities() : {}
-        if (!caps.torch) {
+        try {
+          await track.applyConstraints({ advanced: [{ torch: true }] })
+          torchStreamRef.current = stream
+          setTorchOn(true)
+        } catch(e) {
+          // Device does not support torch — clean up silently
           stream.getTracks().forEach(t => t.stop())
-          alert('Torch not supported on this device.')
-          return
         }
-        await track.applyConstraints({ advanced: [{ torch: true }] })
-        torchStreamRef.current = stream
-        setTorchOn(true)
       } catch(e) {
-        console.error('Torch error:', e)
-        alert('Could not activate torch. Check camera permissions.')
+        // Camera access denied or unavailable — fail silently
+        console.error('Torch camera error:', e)
       }
     }
   }

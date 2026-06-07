@@ -22,6 +22,7 @@ export default function AdmitPage({ gateData, tenantData }) {
   const [submitted, setSubmitted] = useState(null)
   const [cameraOpen, setCameraOpen] = useState(false)
   const [scanning, setScanning] = useState(false)
+  const [cameraTorch, setCameraTorch] = useState(false)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -89,6 +90,7 @@ export default function AdmitPage({ gateData, tenantData }) {
       })
       streamRef.current = stream
       setCameraOpen(true)
+      checkAndAutoTorch()
     } catch (err) {
       console.error('Camera error:', err)
       alert('Camera access denied. Please allow camera permissions and enter plate manually.')
@@ -99,6 +101,42 @@ export default function AdmitPage({ gateData, tenantData }) {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
     setCameraOpen(false)
+    setCameraTorch(false)
+  }
+
+  // Auto-detect ambient light and activate torch if dark
+  async function checkAndAutoTorch() {
+    if (!videoRef.current || !canvasRef.current || !streamRef.current) return
+    try {
+      await new Promise(r => setTimeout(r, 600))
+      const v = videoRef.current
+      const c = canvasRef.current
+      c.width = 64; c.height = 64
+      c.getContext('2d').drawImage(v, 0, 0, 64, 64)
+      const data = c.getContext('2d').getImageData(0, 0, 64, 64).data
+      let sum = 0
+      for (let i = 0; i < data.length; i += 4) {
+        sum += (data[i] + data[i + 1] + data[i + 2]) / 3
+      }
+      const brightness = sum / (data.length / 4)
+      if (brightness < 50) {
+        const track = streamRef.current?.getVideoTracks()[0]
+        if (track) {
+          try { await track.applyConstraints({ advanced: [{ torch: true }] }); setCameraTorch(true) }
+          catch(e) { /* torch not supported on this device */ }
+        }
+      }
+    } catch(e) { /* ignore */ }
+  }
+
+  async function toggleCameraTorch() {
+    const track = streamRef.current?.getVideoTracks()[0]
+    if (!track) return
+    try {
+      const next = !cameraTorch
+      await track.applyConstraints({ advanced: [{ torch: next }] })
+      setCameraTorch(next)
+    } catch(e) { /* silent */ }
   }
 
   async function captureOCR() {
@@ -367,6 +405,23 @@ async function submit() {
                     </button>
                   ) : (
                     <>
+                      <button
+                          onClick={toggleCameraTorch}
+                          title={cameraTorch ? 'Torch off' : 'Torch on'}
+                          style={{
+                            background: cameraTorch ? 'rgba(250,204,21,0.15)' : 'rgba(255,255,255,0.08)',
+                            border: '1.5px solid ' + (cameraTorch ? '#facc15' : 'rgba(255,255,255,0.2)'),
+                            borderRadius: '10px', width: '46px', height: '46px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', flexShrink: 0, padding: 0
+                          }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24"
+                            fill={cameraTorch ? '#facc15' : 'none'}
+                            stroke={cameraTorch ? '#facc15' : 'rgba(255,255,255,0.7)'}
+                            strokeWidth="2" strokeLinecap="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                          </svg>
+                        </button>
                       <button className="btn btn-primary" style={{ flex: 1 }} onClick={captureOCR} disabled={scanning}>
                         {scanning ? <><div className="spinner" style={{ width: '14px', height: '14px' }} /> Scanning...</> : 'Capture plate'}
                       </button>
