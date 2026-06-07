@@ -37,6 +37,30 @@ export default function CommandApp() {
     return () => supabase.removeChannel(ch)
   }, [])
 
+  // Session expiry — auto logout after 8 hours of inactivity
+  useEffect(() => {
+    const SESSION_LIMIT = 8 * 60 * 60 * 1000
+    let lastActivity = Date.now()
+    function updateActivity() { lastActivity = Date.now() }
+    const checkExpiry = setInterval(() => {
+      if (Date.now() - lastActivity > SESSION_LIMIT) {
+        clearInterval(checkExpiry)
+        logout()
+      }
+    }, 60000)
+    window.addEventListener('mousemove', updateActivity)
+    window.addEventListener('keydown', updateActivity)
+    window.addEventListener('click', updateActivity)
+    window.addEventListener('touchstart', updateActivity)
+    return () => {
+      clearInterval(checkExpiry)
+      window.removeEventListener('mousemove', updateActivity)
+      window.removeEventListener('keydown', updateActivity)
+      window.removeEventListener('click', updateActivity)
+      window.removeEventListener('touchstart', updateActivity)
+    }
+  }, [])
+
   async function fetchCounts() {
     const [a, i] = await Promise.all([
       supabase.from('flag_alerts').select('id', { count: 'exact' }).eq('tenant_id', tenant.id).eq('acknowledged', false),
