@@ -85,9 +85,18 @@ export default function AdmitPage({ gateData, tenantData }) {
 
   async function startCamera() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-      })
+      let stream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 },
+                   advanced: [{ torch: true }] }
+        })
+        setCameraTorch(true)
+      } catch(e) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+        })
+      }
       streamRef.current = stream
       setCameraOpen(true)
       checkAndAutoTorch()

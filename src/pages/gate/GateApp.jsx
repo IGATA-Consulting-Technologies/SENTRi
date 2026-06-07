@@ -93,16 +93,25 @@ export default function GateApp() {
       setTorchOn(false)
     } else {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        const track = stream.getVideoTracks()[0]
+        // Try requesting torch directly in getUserMedia — better Samsung support
+        let stream
         try {
-          await track.applyConstraints({ advanced: [{ torch: true }] })
-          torchStreamRef.current = stream
-          setTorchOn(true)
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment', advanced: [{ torch: true }] }
+          })
         } catch(e) {
-          // Device does not support torch — clean up silently
-          stream.getTracks().forEach(t => t.stop())
+          // Fallback: get stream without torch then apply constraint
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            const track = stream.getVideoTracks()[0]
+            await track.applyConstraints({ advanced: [{ torch: true }] })
+          } catch(e2) {
+            if (stream) stream.getTracks().forEach(t => t.stop())
+            return // Torch not available — fail silently
+          }
         }
+        torchStreamRef.current = stream
+        setTorchOn(true)
       } catch(e) {
         // Camera access denied or unavailable — fail silently
         console.error('Torch camera error:', e)
