@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
@@ -69,6 +69,8 @@ export default function GateApp() {
   const [error, setError] = useState('')
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [torchOn, setTorchOn] = useState(false)
+  const torchStreamRef = useRef(null)
   useGateManifest()
 
   useEffect(() => { loadGate() }, [tenantSlug, gateSlug])
@@ -79,6 +81,35 @@ export default function GateApp() {
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
   }, [])
+
+  async function toggleTorch() {
+    if (torchOn) {
+      try {
+        const track = torchStreamRef.current?.getVideoTracks()[0]
+        if (track) await track.applyConstraints({ advanced: [{ torch: false }] })
+        torchStreamRef.current?.getTracks().forEach(t => t.stop())
+        torchStreamRef.current = null
+      } catch(e) { /* ignore */ }
+      setTorchOn(false)
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        const track = stream.getVideoTracks()[0]
+        const caps = track.getCapabilities ? track.getCapabilities() : {}
+        if (!caps.torch) {
+          stream.getTracks().forEach(t => t.stop())
+          alert('Torch not supported on this device.')
+          return
+        }
+        await track.applyConstraints({ advanced: [{ torch: true }] })
+        torchStreamRef.current = stream
+        setTorchOn(true)
+      } catch(e) {
+        console.error('Torch error:', e)
+        alert('Could not activate torch. Check camera permissions.')
+      }
+    }
+  }
 
   async function loadGate(isRefresh = false) {
     if (isRefresh) setRefreshing(true)
@@ -201,6 +232,25 @@ export default function GateApp() {
             style={{ transform: refreshing ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s' }}>
             <polyline points="23 4 23 10 17 10"/>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </button>
+
+        {/* Torch button */}
+        <button
+          onClick={toggleTorch}
+          title={torchOn ? 'Turn off torch' : 'Turn on torch'}
+          style={{
+            background: torchOn ? 'rgba(250,204,21,0.2)' : 'rgba(255,255,255,0.06)',
+            border: '1px solid ' + (torchOn ? 'rgba(250,204,21,0.5)' : 'rgba(255,255,255,0.12)'),
+            borderRadius: '8px', width: '34px', height: '34px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0, padding: 0, transition: 'all 0.2s'
+          }}>
+          <svg width="16" height="16" viewBox="0 0 24 24"
+            fill={torchOn ? '#facc15' : 'none'}
+            stroke={torchOn ? '#facc15' : 'rgba(255,255,255,0.6)'}
+            strokeWidth="2" strokeLinecap="round">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
           </svg>
         </button>
 
