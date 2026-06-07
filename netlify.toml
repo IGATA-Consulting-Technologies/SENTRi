@@ -3,6 +3,9 @@
   publish = "dist"
   functions = "netlify/functions"
 
+[build.environment]
+  SECRETS_SCAN_ENABLED = "false"
+
 [functions."weekly-digest"]
   schedule = "0 7 * * 1"
 

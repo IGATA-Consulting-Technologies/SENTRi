@@ -54,7 +54,7 @@ exports.handler = async (event) => {
         path: '/v1/plate-reader/',
         method: 'POST',
         headers: {
-          'Authorization': 'Token cd023a0e31de97d28995b3849851088c23403542',
+          'Authorization': 'Token ' + process.env.PLATE_RECOGNIZER_TOKEN,
           'Content-Type': 'multipart/form-data; boundary=' + boundary,
           'Content-Length': body.length
         }
