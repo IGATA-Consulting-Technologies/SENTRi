@@ -85,21 +85,11 @@ export default function AdmitPage({ gateData, tenantData }) {
 
   async function startCamera() {
     try {
-      let stream
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 },
-                   advanced: [{ torch: true }] }
-        })
-        setCameraTorch(true)
-      } catch(e) {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
-        })
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }
+      })
       streamRef.current = stream
       setCameraOpen(true)
-      checkAndAutoTorch()
     } catch (err) {
       console.error('Camera error:', err)
       alert('Camera access denied. Please allow camera permissions and enter plate manually.')
@@ -111,31 +101,6 @@ export default function AdmitPage({ gateData, tenantData }) {
     streamRef.current = null
     setCameraOpen(false)
     setCameraTorch(false)
-  }
-
-  // Auto-detect ambient light and activate torch if dark
-  async function checkAndAutoTorch() {
-    if (!videoRef.current || !canvasRef.current || !streamRef.current) return
-    try {
-      await new Promise(r => setTimeout(r, 600))
-      const v = videoRef.current
-      const c = canvasRef.current
-      c.width = 64; c.height = 64
-      c.getContext('2d').drawImage(v, 0, 0, 64, 64)
-      const data = c.getContext('2d').getImageData(0, 0, 64, 64).data
-      let sum = 0
-      for (let i = 0; i < data.length; i += 4) {
-        sum += (data[i] + data[i + 1] + data[i + 2]) / 3
-      }
-      const brightness = sum / (data.length / 4)
-      if (brightness < 50) {
-        const track = streamRef.current?.getVideoTracks()[0]
-        if (track) {
-          try { await track.applyConstraints({ advanced: [{ torch: true }] }); setCameraTorch(true) }
-          catch(e) { /* torch not supported on this device */ }
-        }
-      }
-    } catch(e) { /* ignore */ }
   }
 
   async function toggleCameraTorch() {
