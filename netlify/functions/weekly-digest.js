@@ -227,14 +227,16 @@ exports.handler = async (event) => {
     day: '2-digit', month: 'long', year: 'numeric'
   })
 
-  const { data: tenants } = await supabase
+  const { data: tenants, error: tenantErr } = await supabase
     .from('tenants')
     .select('id,name')
     .eq('is_active', true)
     .eq('onboarding_complete', true)
 
+  console.log('Tenant query result:', JSON.stringify({ count: tenants?.length, error: tenantErr?.message }))
+
   if (!tenants?.length) {
-    console.log('No active tenants')
+    console.log('No active tenants found — key prefix:', (process.env.SUPABASE_SERVICE_KEY || '').slice(0, 20))
     return { statusCode: 200, body: 'No tenants' }
   }
 
