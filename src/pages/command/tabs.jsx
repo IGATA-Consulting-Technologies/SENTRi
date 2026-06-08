@@ -11,7 +11,22 @@ export function LiveTab() {
   const [stats, setStats] = useState({})
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { if (tenant?.id) load() }, [tenant])
+  useEffect(() => {
+    if (!tenant?.id) return
+    load()
+    // Realtime subscription — update live feed instantly on new admission or checkout
+    const sub = supabase.channel('live-movements')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'movements',
+        filter: 'tenant_id=eq.' + tenant.id
+      }, () => load())
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'movements',
+        filter: 'tenant_id=eq.' + tenant.id
+      }, () => load())
+      .subscribe()
+    return () => supabase.removeChannel(sub)
+  }, [tenant])
 
   async function load() {
     setLoading(true)
