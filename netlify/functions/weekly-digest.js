@@ -3,7 +3,7 @@ const { createClient } = require('@supabase/supabase-js')
 
 const SUPABASE_URL = 'https://zrnkwhxsqxkaimvyqixg.supabase.co'
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
-const RESEND_KEY = 're_FF99D5ZP_PRQZmErHp9hjUeSYYK5cEcM6'
+const RESEND_KEY = process.env.RESEND_API_KEY
 const FROM = 'SENTRi Intelligence <alerts@igataconsulting.tech>'
 
 async function sendEmail(to, subject, html) {
@@ -261,7 +261,7 @@ exports.handler = async (event) => {
       movements.forEach(m => { if (m.destination) destMap[m.destination] = (destMap[m.destination] || 0) + 1 })
       const topDest = Object.entries(destMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([dest, count]) => ({ dest, count }))
       const activeDaySet = new Set(movements.map(m => m.entry_time.split('T')[0]))
-      const offHours = movements.filter(m => { const h = new Date(m.entry_time).getHours(); return h < 6 || h >= 22 }).length
+      const offHours = movements.filter(m => { const h = new Date(m.entry_time).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', hour: 'numeric', hour12: false }); return parseInt(h) < 6 || parseInt(h) >= 22 }).length
 
       const stats = {
         total: movements.length,
