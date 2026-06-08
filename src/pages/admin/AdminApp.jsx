@@ -337,7 +337,7 @@ function TenantsTab() {
           </div>
         </div>
       ))}
-    </div>
+
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}>
@@ -367,6 +367,7 @@ function TenantsTab() {
           </div>
         </div>
       )}
+    </div>
 
   )
 }
