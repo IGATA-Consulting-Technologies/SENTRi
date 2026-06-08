@@ -10,19 +10,42 @@ export default function GateLogPage({ onBack }) {
   const [filter, setFilter] = useState('all')
 
   useEffect(() => {
-    if (tenant?.id && gate?.id) {
-      fetchMovements()
-    } else {
-      const interval = setInterval(() => {
-        const state = useGuardStore.getState()
-        if (state.tenant?.id && state.gate?.id) { clearInterval(interval); fetchMovements() }
-      }, 200)
-      setTimeout(() => clearInterval(interval), 5000)
-      return () => clearInterval(interval)
+    // Small delay ensures movements inserted just before tab opens are included
+    const run = () => {
+      const state = useGuardStore.getState()
+      const t = tenant || state.tenant
+      const g = gate || state.gate
+      if (t?.id && g?.id) {
+        fetchMovements(t, g)
+      } else {
+        const interval = setInterval(() => {
+          const s = useGuardStore.getState()
+          if (s.tenant?.id && s.gate?.id) { clearInterval(interval); fetchMovements(s.tenant, s.gate) }
+        }, 200)
+        setTimeout(() => clearInterval(interval), 5000)
+        return () => clearInterval(interval)
+      }
     }
+    const timer = setTimeout(run, 300)
+    return () => clearTimeout(timer)
   }, [period, tenant, gate])
 
-  async function fetchMovements() {
+  // Refetch when tab becomes visible again
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        const s = useGuardStore.getState()
+        if (s.tenant?.id && s.gate?.id) fetchMovements(s.tenant, s.gate)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [period])
+
+  async function fetchMovements(tnt, gt) {
+    const activeTenant = tnt || tenant || useGuardStore.getState().tenant
+    const activeGate = gt || gate || useGuardStore.getState().gate
+    if (!activeTenant?.id || !activeGate?.id) return
     setLoading(true)
     let since
     if (period === 'today') {
@@ -32,7 +55,7 @@ export default function GateLogPage({ onBack }) {
     }
     const { data } = await supabase.from('movements')
       .select('*, entry_officer:officers!movements_entry_officer_id_fkey(name,rank), exit_officer:officers!movements_exit_officer_id_fkey(name,rank)')
-      .eq('tenant_id', tenant.id).eq('gate_id', gate.id)
+      .eq('tenant_id', activeTenant.id).eq('gate_id', activeGate.id)
       .gte('entry_time', since).order('entry_time', { ascending: false })
     setMovements(data || [])
     setLoading(false)
