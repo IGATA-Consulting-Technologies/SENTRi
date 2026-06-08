@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
-const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET || 'IGATASentri@Admin2024'
+const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET
 const SECTORS = ['military', 'oil_gas', 'banking', 'corporate', 'government', 'other']
 
 // ── Email helper ─────────────────────────────────────────────────────────────
@@ -338,6 +338,36 @@ function TenantsTab() {
         </div>
       ))}
     </div>
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '24px' }}>
+          <div style={{ background: 'var(--bg-1)', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '400px', boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+            <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(192,19,42,0.12)', border: '1.5px solid rgba(192,19,42,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c0132a" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+            </div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: '700', textAlign: 'center', marginBottom: '8px' }}>Delete {deleteTarget.name}?</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-2)', textAlign: 'center', lineHeight: '1.6', marginBottom: '20px' }}>
+              This will permanently delete the installation and all its data — gates, officers, movements, incidents, and alerts. This cannot be undone.
+            </p>
+            {deleteError && (
+              <div style={{ background: 'rgba(192,19,42,0.08)', border: '1px solid rgba(192,19,42,0.2)', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: 'var(--red)', marginBottom: '16px' }}>
+                {deleteError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => { setDeleteTarget(null); setDeleteError('') }}
+                style={{ flex: 1, padding: '12px', background: 'transparent', border: '1.5px solid var(--border-med)', borderRadius: '10px', fontSize: '14px', fontWeight: '600', fontFamily: 'var(--font-display)', cursor: 'pointer', color: 'var(--text-2)' }}>
+                Cancel
+              </button>
+              <button onClick={confirmDelete} disabled={deleting}
+                style={{ flex: 1, padding: '12px', background: '#c0132a', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', fontFamily: 'var(--font-display)', cursor: deleting ? 'not-allowed' : 'pointer', color: 'white', opacity: deleting ? 0.7 : 1 }}>
+                {deleting ? 'Deleting...' : 'Yes, delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
   )
 }
 
