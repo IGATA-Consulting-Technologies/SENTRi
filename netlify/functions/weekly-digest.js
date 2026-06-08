@@ -2,7 +2,7 @@ const https = require('https')
 const { createClient } = require('@supabase/supabase-js')
 
 const SUPABASE_URL = 'https://zrnkwhxsqxkaimvyqixg.supabase.co'
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || ''
 const RESEND_KEY = process.env.RESEND_API_KEY
 const FROM = 'SENTRi Intelligence <alerts@igataconsulting.tech>'
 
@@ -221,7 +221,7 @@ function buildDigestHTML(tenant, officerName, stats, weekLabel) {
 
 exports.handler = async (event) => {
   console.log('Weekly digest starting...')
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const weekLabel = 'Week of ' + new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', {
     day: '2-digit', month: 'long', year: 'numeric'
