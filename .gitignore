@@ -12,3 +12,5 @@ wire-*.js
 build-*.js
 enhance-*.js
 audit*.txt
+
+netlify/functions/node_modules
