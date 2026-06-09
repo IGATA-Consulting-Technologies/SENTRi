@@ -96,7 +96,15 @@ export default function CheckoutPage() {
 
   function dur(entry) {
     const m = Math.round((Date.now() - new Date(entry)) / 60000)
-    return m < 60 ? m + 'm' : Math.floor(m / 60) + 'h ' + (m % 60) + 'm'
+    if (m < 60) return m + 'm'
+    const h = Math.floor(m / 60)
+    if (h < 24) return h + 'h ' + (m % 60) + 'm'
+    const d = Math.floor(h / 24)
+    if (d < 7) return d + 'd ' + (h % 24) + 'h'
+    const wk = Math.floor(d / 7)
+    if (wk < 5) return wk + 'wk ' + (d % 7) + 'd'
+    const mo = Math.floor(d / 30)
+    return mo + 'mo ' + (d % 30) + 'd'
   }
 
   function formatTime(iso) {
@@ -161,7 +169,7 @@ export default function CheckoutPage() {
               {checkedOut.plate_number || checkedOut.visitor_name} checked out
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>
-              Duration: {Math.round((new Date(checkedOut.exit_time || Date.now()) - new Date(checkedOut.entry_time)) / 60000)}m
+              Duration: {dur(checkedOut.entry_time)}
             </div>
           </div>
         </div>
