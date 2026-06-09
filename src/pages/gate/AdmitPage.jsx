@@ -432,41 +432,17 @@ async function submit() {
           {type === 'vehicle' && <div className="field"><label>Visitor name (optional)</label><input type="text" placeholder="Driver / main visitor" value={visitorName} onChange={e => setVisitorName(e.target.value)} autoCapitalize="words" /></div>}
           <div className="field">
             <label>Destination *</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-              {activeDestinations.map(d => (
-                <button key={d} type="button"
-                  onClick={() => setDestination(d)}
-                  style={{
-                    padding: '8px 14px', borderRadius: '20px', fontSize: '13px',
-                    fontFamily: 'var(--font-body)', cursor: 'pointer', transition: 'all 0.15s',
-                    background: destination === d ? 'var(--accent)' : 'var(--bg-2)',
-                    color: destination === d ? 'white' : 'var(--text-1)',
-                    border: destination === d ? '1.5px solid var(--accent)' : '1.5px solid var(--border-med)',
-                    fontWeight: destination === d ? '600' : '400'
-                  }}>
-                  {d}
-                </button>
-              ))}
-            </div>
+            <select value={destination} onChange={e => setDestination(e.target.value)}>
+              <option value="">Select destination…</option>
+              {activeDestinations.map(d => <option key={d}>{d}</option>)}
+            </select>
           </div>
           <div className="field">
             <label>Purpose *</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-              {activePurposes.map(p => (
-                <button key={p} type="button"
-                  onClick={() => setPurpose(p)}
-                  style={{
-                    padding: '8px 14px', borderRadius: '20px', fontSize: '13px',
-                    fontFamily: 'var(--font-body)', cursor: 'pointer', transition: 'all 0.15s',
-                    background: purpose === p ? 'var(--green)' : 'var(--bg-2)',
-                    color: purpose === p ? 'white' : 'var(--text-1)',
-                    border: purpose === p ? '1.5px solid var(--green)' : '1.5px solid var(--border-med)',
-                    fontWeight: purpose === p ? '600' : '400'
-                  }}>
-                  {p}
-                </button>
-              ))}
-            </div>
+            <select value={purpose} onChange={e => setPurpose(e.target.value)}>
+              <option value="">Select purpose…</option>
+              {activePurposes.map(p => <option key={p}>{p}</option>)}
+            </select>
           </div>
           {type === 'vehicle' && <div className="field"><label>Occupants</label><input type="number" min="1" max="20" value={occupants} onChange={e => setOccupants(e.target.value)} /></div>}
           <div className="field"><label>Notes (optional)</label><input type="text" placeholder="Additional notes" value={notes} onChange={e => setNotes(e.target.value)} /></div>
