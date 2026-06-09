@@ -14,10 +14,15 @@ function fmtTime(d) {
 }
 function fmtDuration(mins) {
   if (!mins) return '—'
-  if (mins < 60) return mins + ' min'
+  if (mins < 60) return mins + 'm'
   const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return h + 'h' + (m > 0 ? ' ' + m + 'm' : '')
+  if (h < 24) return h + 'h' + (mins % 60 > 0 ? ' ' + (mins % 60) + 'm' : '')
+  const d = Math.floor(h / 24)
+  if (d < 7) return d + 'd ' + (h % 24) + 'h'
+  const wk = Math.floor(d / 7)
+  if (wk < 5) return wk + 'wk ' + (d % 7) + 'd'
+  const mo = Math.floor(d / 30)
+  return mo + 'mo ' + (d % 30) + 'd'
 }
 function todayStr() { return new Date().toISOString().split('T')[0] }
 function daysAgoStr(n) { return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString().split('T')[0] }

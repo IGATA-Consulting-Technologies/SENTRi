@@ -2,7 +2,28 @@
 
 function dur(entry) {
   const m = Math.round((Date.now() - new Date(entry)) / 60000)
-  return m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`
+  if (m < 60) return m + 'm'
+  const h = Math.floor(m / 60)
+  if (h < 24) return h + 'h ' + (m % 60) + 'm'
+  const d = Math.floor(h / 24)
+  if (d < 7) return d + 'd ' + (h % 24) + 'h'
+  const wk = Math.floor(d / 7)
+  if (wk < 5) return wk + 'wk ' + (d % 7) + 'd'
+  const mo = Math.floor(d / 30)
+  return mo + 'mo ' + (d % 30) + 'd'
+}
+
+function fmtDur(m) { // v2
+  if (!m) return '—'
+  if (m < 60) return m + 'm'
+  const h = Math.floor(m / 60)
+  if (h < 24) return h + 'h ' + (m % 60) + 'm'
+  const d = Math.floor(h / 24)
+  if (d < 7) return d + 'd ' + (h % 24) + 'h'
+  const wk = Math.floor(d / 7)
+  if (wk < 5) return wk + 'wk ' + (d % 7) + 'd'
+  const mo = Math.floor(d / 30)
+  return mo + 'mo ' + (d % 30) + 'd'
 }
 
 export function LiveTab() {
@@ -49,7 +70,7 @@ export function LiveTab() {
           { label: 'Inside now', value: stats.inside ?? '—', color: 'var(--green)' },
           { label: 'Today total', value: stats.total ?? '—', color: 'var(--text-0)' },
           { label: 'Flag hits', value: stats.flagged ?? '—', color: stats.flagged > 0 ? 'var(--red)' : 'var(--text-0)' },
-          { label: 'Avg stay', value: stats.avgDur ? `${stats.avgDur}m` : '—', color: 'var(--text-0)' }
+          { label: 'Avg stay', value: fmtDur(stats.avgDur), color: 'var(--text-0)' }
         ].map(s => (
           <div key={s.label} className="card" style={{ padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-2)', marginBottom: '6px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
@@ -263,7 +284,7 @@ export function ReportTab() {
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '20px', fontWeight: '700', marginBottom: '4px' }}>Weekly report</h2>
       <p style={{ fontSize: '13px', color: 'var(--text-2)', marginBottom: '20px' }}>Last 7 days · {tenant?.name}</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '20px' }}>
-        {[{ label: 'Total movements', value: report.total }, { label: 'Vehicles', value: report.vehicles }, { label: 'Pedestrians', value: report.pedestrians }, { label: 'Flag hits', value: report.flagged, color: report.flagged > 0 ? 'var(--red)' : undefined }, { label: 'Avg stay', value: `${report.avgDur}m` }].map(s => (
+        {[{ label: 'Total movements', value: report.total }, { label: 'Vehicles', value: report.vehicles }, { label: 'Pedestrians', value: report.pedestrians }, { label: 'Flag hits', value: report.flagged, color: report.flagged > 0 ? 'var(--red)' : undefined }, { label: 'Avg stay', value: fmtDur(report.avgDur) }].map(s => (
           <div key={s.label} className="card" style={{ padding: '14px' }}>
             <div style={{ fontSize: '10px', color: 'var(--text-2)', marginBottom: '5px', fontFamily: 'var(--font-display)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</div>
             <div style={{ fontSize: '24px', fontWeight: '700', fontFamily: 'var(--font-display)', color: s.color || 'var(--text-0)', lineHeight: 1 }}>{s.value}</div>
