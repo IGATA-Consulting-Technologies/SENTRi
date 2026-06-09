@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useGuardStore } from '../../store'
-import { queueMovement } from '../../lib/offline'
+import { queueMovement, cacheAdmittedMovement } from '../../lib/offline'
 import { sendFlagAlertEmail } from '../../lib/email'
 
 const DESTINATIONS = ['Administration Block', 'Officers Mess', 'Barracks / Quarters', 'Armoury', 'Medical Centre', 'Sports Complex', 'Provost Office', 'Signals Unit', 'Quartermaster Store', 'Commanding Officer Office', 'Other']
@@ -242,6 +242,7 @@ async function submit() {
         const { data, error } = await supabase.from('movements').insert(movement).select().single()
         if (error) throw error
         setSubmitted(data || movement)
+        cacheAdmittedMovement(data || movement).catch(() => {})
         if (data?.id) {
         checkAndAlertIfFlagged(data.id)
         captureSnapshot(effectiveGate?.id, data.id)

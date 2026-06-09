@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'sentri-offline'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let db
 
@@ -15,6 +15,9 @@ async function getDB() {
       }
       if (!database.objectStoreNames.contains('active_sessions')) {
         database.createObjectStore('active_sessions', { keyPath: 'id' })
+      if (!database.objectStoreNames.contains('checkout_cache')) {
+        database.createObjectStore('checkout_cache', { keyPath: 'cacheKey' })
+      }
       }
     }
   })
@@ -49,4 +52,20 @@ export async function cacheActiveSessions(sessions) {
 export async function getCachedActiveSessions() {
   const database = await getDB()
   return database.getAll('active_sessions')
+}
+
+export async function cacheAdmittedMovement(movement) {
+  const database = await getDB()
+  const cacheKey = movement.id || ('local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7))
+  await database.put('checkout_cache', { ...movement, cacheKey })
+}
+
+export async function getCachedCheckouts() {
+  const database = await getDB()
+  return database.getAll('checkout_cache')
+}
+
+export async function removeCachedCheckout(cacheKey) {
+  const database = await getDB()
+  await database.delete('checkout_cache', cacheKey)
 }

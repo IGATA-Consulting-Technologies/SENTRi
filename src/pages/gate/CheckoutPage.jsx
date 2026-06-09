@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { getCachedCheckouts, removeCachedCheckout, cacheAdmittedMovement } from '../../lib/offline'
 import { useGuardStore } from '../../store'
 
 export default function CheckoutPage() {
@@ -26,22 +27,47 @@ export default function CheckoutPage() {
 
   async function load() {
     setLoading(true)
+    if (!navigator.onLine) {
+      const cached = await getCachedCheckouts().catch(() => [])
+      setEntries(cached.filter(e => !e.exit_time))
+      setLoading(false)
+      return
+    }
     const { data, error } = await supabase
       .from('movements')
       .select('*')
       .eq('tenant_id', tenant.id)
       .is('exit_time', null)
       .order('entry_time', { ascending: false })
-    if (error) console.error('Checkout load error:', error.message)
+    if (error) {
+      console.error('Checkout load error:', error.message)
+      const cached = await getCachedCheckouts().catch(() => [])
+      setEntries(cached.filter(e => !e.exit_time))
+      setLoading(false)
+      return
+    }
     setEntries(data || [])
     setLoading(false)
   }
 
   async function checkout(movement) {
-    setCheckingOut(movement.id)
+    setCheckingOut(movement.id || movement.cacheKey)
     const exitTime = new Date().toISOString()
     const entryTime = new Date(movement.entry_time)
     const durationMinutes = Math.round((Date.now() - entryTime.getTime()) / 60000)
+    const cacheKey = movement.cacheKey || movement.id
+
+    if (!navigator.onLine) {
+      // Offline: record exit locally and remove from cache
+      const updated = { ...movement, exit_time: exitTime, duration_minutes: durationMinutes }
+      await cacheAdmittedMovement(updated).catch(() => {})
+      await removeCachedCheckout(cacheKey).catch(() => {})
+      setCheckedOut({ ...movement, exit_time: exitTime })
+      setEntries(prev => prev.filter(e => (e.id || e.cacheKey) !== (movement.id || movement.cacheKey)))
+      setCheckingOut(null)
+      setTimeout(() => setCheckedOut(null), 3000)
+      return
+    }
 
     const { error } = await supabase
       .from('movements')
@@ -59,6 +85,7 @@ export default function CheckoutPage() {
       return
     }
 
+    await removeCachedCheckout(cacheKey).catch(() => {})
     setCheckedOut(movement)
     setEntries(prev => prev.filter(e => e.id !== movement.id))
     setCheckingOut(null)
