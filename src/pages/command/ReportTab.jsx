@@ -11,6 +11,18 @@ const PERIODS = [
 
 // ── Helpers ──
 function hourLabel(h) { return h === 0 ? '12am' : h < 12 ? h + 'am' : h === 12 ? '12pm' : (h - 12) + 'pm' }
+function fmtDur(m) {
+  if (!m) return '—'
+  if (m < 60) return m + 'm'
+  const h = Math.floor(m / 60)
+  if (h < 24) return h + 'h ' + (m % 60) + 'm'
+  const d = Math.floor(h / 24)
+  if (d < 7) return d + 'd ' + (h % 24) + 'h'
+  const wk = Math.floor(d / 7)
+  if (wk < 5) return wk + 'wk ' + (d % 7) + 'd'
+  const mo = Math.floor(d / 30)
+  return mo + 'mo ' + (d % 30) + 'd'
+}
 function fmtDate(d) { return new Date(d).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }) }
 
 // ── Inline peak hours SVG bar chart ──
@@ -450,7 +462,7 @@ export default function ReportTab() {
               { label: 'Total', value: data.total, color: 'var(--accent)' },
               { label: 'Vehicles', value: data.vehicles },
               { label: 'Pedestrians', value: data.pedestrians },
-              { label: 'Avg Stay', value: data.avgDuration ? data.avgDuration + 'm' : '—' },
+              { label: 'Avg Stay', value: fmtDur(data.avgDuration) },
               { label: 'Flag Hits', value: data.flagTotal, color: data.flagTotal > 0 ? 'var(--red)' : undefined, sub: data.flagUnack > 0 ? data.flagUnack + ' unacknowledged' : data.flagTotal > 0 ? 'All acknowledged' : null },
               { label: 'Incidents', value: data.incidents, color: data.incidents > 0 ? 'var(--amber)' : undefined, sub: data.criticalIncidents > 0 ? data.criticalIncidents + ' critical' : null },
             ].map(s => (
@@ -579,7 +591,7 @@ export default function ReportTab() {
                 <tbody>
                   {data.shiftLogs.map((s, i) => {
                     const durMins = s.shift_start && s.shift_end ? Math.round((new Date(s.shift_end) - new Date(s.shift_start)) / 60000) : null
-                    const dur = durMins ? (durMins < 60 ? durMins + 'min' : Math.floor(durMins/60) + 'h ' + (durMins%60) + 'm') : '—'
+                    const dur = fmtDur(durMins)
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '8px 4px', fontSize: '13px', fontWeight: '600' }}>{s.officer_name || '—'}</td>
