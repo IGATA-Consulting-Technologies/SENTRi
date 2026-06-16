@@ -22,7 +22,7 @@ export default function Register() {
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
     setLoading(true)
 
-    const { error: authErr } = await supabase.auth.signUp({
+    const { data, error: authErr } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
@@ -33,6 +33,10 @@ export default function Register() {
 
     setLoading(false)
     if (authErr) { setError(authErr.message); return }
+    if (data?.user && (!data.user.identities || data.user.identities.length === 0)) {
+      setError('An account with this email already exists. Please sign in instead.')
+      return
+    }
     setDone(true)
   }
 
