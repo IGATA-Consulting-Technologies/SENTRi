@@ -25,7 +25,7 @@ exports.handler = async (event) => {
     }
 
     const payload = JSON.stringify({
-      from: 'SENTRi Alerts <alerts@igataconsulting.tech>',
+      from: 'SENTRi Alerts <alerts@sentri.ng>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html
