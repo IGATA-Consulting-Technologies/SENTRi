@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js')
 const SUPABASE_URL = 'https://zrnkwhxsqxkaimvyqixg.supabase.co'
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || ''
 const RESEND_KEY = process.env.RESEND_API_KEY
-const FROM = 'SENTRi Intelligence <alerts@igataconsulting.tech>'
+const FROM = 'SENTRi Intelligence <alerts@sentri.ng>'
 
 async function sendEmail(to, subject, html) {
   const payload = JSON.stringify({
@@ -184,7 +184,7 @@ function buildDigestHTML(tenant, officerName, stats, weekLabel) {
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;">
               <tr>
                 <td align="center">
-                  <a href="https://sentri-igata.netlify.app/command"
+                  <a href="https://app.sentri.ng/command"
                      style="display:inline-block;background:#1a56db;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:0.02em;">
                     View Full Dashboard &rarr;
                   </a>
