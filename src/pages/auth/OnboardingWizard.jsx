@@ -235,7 +235,7 @@ export default function OnboardingWizard() {
                     <tr><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:12px;color:#6b7280;">Email</td><td style="padding:8px 0;border-bottom:1px solid #e2e6ed;font-size:14px;">${userEmail}</td></tr>
                     <tr><td style="padding:8px 0;font-size:12px;color:#6b7280;">Gates</td><td style="padding:8px 0;font-size:14px;">${created.length} gate(s) created</td></tr>
                   </table>
-                  <a href="https://sentri-igata.netlify.app/admin" style="display:block;margin-top:24px;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">View in Superadmin →</a>
+                  <a href="https://app.sentri.ng/admin" style="display:block;margin-top:24px;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">View in Superadmin →</a>
                 </div>
                 <div style="padding:16px 28px;border-top:1px solid #e2e6ed;font-size:11px;color:#9ca3af;">IGATA Technologies · SENTRi Platform</div>
               </div>
