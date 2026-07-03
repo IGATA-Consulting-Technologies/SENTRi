@@ -40,7 +40,7 @@ export async function sendFlagAlertEmail({ tenantName, gateName, plate, visitorN
         </div>
       </div>
       <p style="margin:0 0 24px;font-size:13px;color:#6b7280;">Detected at <strong>${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></p>
-      <a href="https://sentri-igata.netlify.app/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">View on Command Dashboard →</a>
+      <a href="https://app.sentri.ng/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">View on Command Dashboard →</a>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;">
       <span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span>
@@ -50,7 +50,7 @@ export async function sendFlagAlertEmail({ tenantName, gateName, plate, visitorN
   await sendEmail(reportEmails, subject, html)
 }
 
-export async function sendIncidentAlertEmail({ tenantName, gateName, incidentType, severity, description, location, officerName, reportEmails }) {
+export async function sendIncidentAlertEmail({ tenantName, gateName, incidentType, severity, description, location, officerName, reportEmails, mediaUrls, voiceUrl }) {
   if (!reportEmails?.length) return
 
   const severityColor = severity === 'critical' ? '#c0132a' : severity === 'serious' ? '#92530a' : '#1a56db'
@@ -79,7 +79,9 @@ export async function sendIncidentAlertEmail({ tenantName, gateName, incidentTyp
         ${officerName ? '<div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px;">Reported by</div><div style="font-size:14px;color:#1a1a2e;">' + officerName + '</div></div>' : ''}
       </div>
       <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">Reported at <strong>${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></p>
-      <a href="https://sentri-igata.netlify.app/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Acknowledge on Command Dashboard →</a>
+      ${mediaUrls && mediaUrls.length > 0 ? \`<div style="margin-bottom:20px;"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Attached Photos</div><div style="display:flex;gap:8px;flex-wrap:wrap;">\${mediaUrls.map(url => \`<a href="\${url}" target="_blank" style="display:block;"><img src="\${url}" style="width:120px;height:90px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e6ed;" /></a>\`).join('')}</div></div>\` : ''}
+      \${voiceUrl ? \`<div style="margin-bottom:20px;padding:14px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;"><div style="font-size:11px;color:#15803d;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Voice Note</div><a href="\${voiceUrl}" target="_blank" style="font-size:13px;font-weight:600;color:#15803d;text-decoration:none;">▶ Tap to download &amp; play voice note</a></div>\` : ''}
+      <a href="https://app.sentri.ng/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Acknowledge on Command Dashboard →</a>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;">
       <span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span>
@@ -121,7 +123,7 @@ export async function sendReportEmail({ tenantName, period, data, reportEmails }
       </div>
       ${dayRows ? '<h3 style="font-size:14px;font-weight:700;color:#1a1a2e;margin:0 0 12px;">Daily Breakdown</h3><table style="width:100%;border-collapse:collapse;margin-bottom:28px;"><thead><tr style="background:#f8f9fb;"><th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;">Date</th><th style="padding:8px 12px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;">Total</th><th style="padding:8px 12px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;">Vehicles</th><th style="padding:8px 12px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;">Pedestrians</th><th style="padding:8px 12px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;">Flags</th></tr></thead><tbody>' + dayRows + '</tbody></table>' : ''}
       ${destRows ? '<h3 style="font-size:14px;font-weight:700;color:#1a1a2e;margin:0 0 12px;">Top Destinations</h3><table style="width:100%;border-collapse:collapse;margin-bottom:28px;"><thead><tr style="background:#f8f9fb;"><th style="padding:8px 12px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase;">Destination</th><th style="padding:8px 12px;text-align:center;font-size:11px;color:#6b7280;text-transform:uppercase;">Visits</th></tr></thead><tbody>' + destRows + '</tbody></table>' : ''}
-      <a href="https://sentri-igata.netlify.app/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:8px;">View Full Dashboard →</a>
+      <a href="https://app.sentri.ng/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;margin-bottom:8px;">View Full Dashboard →</a>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;">
       <span style="font-size:11px;color:#9ca3af;">Powered by IGATA Technologies</span>

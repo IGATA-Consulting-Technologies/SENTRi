@@ -90,6 +90,29 @@ export default function IncidentsTab({ onCountChange }) {
               </div>
               <p className="incident-description">{inc.description}</p>
               {inc.location && <p className="incident-location">{inc.location}</p>}
+
+              {/* Photo attachments */}
+              {inc.media_urls?.length > 0 && (
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '10px 0' }}>
+                  {inc.media_urls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                      style={{ display: 'block', borderRadius: '6px', overflow: 'hidden', border: '1.5px solid var(--border-med)' }}>
+                      <img src={url} alt={'Photo ' + (i + 1)}
+                        style={{ width: '100px', height: '80px', objectFit: 'cover', display: 'block' }} />
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Voice note */}
+              {inc.voice_url && (
+                <div style={{ margin: '10px 0', padding: '10px 14px', background: 'rgba(14,124,58,0.06)', border: '1.5px solid rgba(14,124,58,0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--green)', marginRight: '8px' }}>Voice note</span>
+                  <audio controls src={inc.voice_url} style={{ height: '28px', flex: 1, maxWidth: '220px' }} />
+                </div>
+              )}
+
               {inc.status === 'open' && (
                 <div className="incident-actions">
                   <button className="btn-amber" onClick={() => updateStatus(inc.id, 'acknowledged')}>Acknowledge</button>

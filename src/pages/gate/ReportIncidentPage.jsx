@@ -214,33 +214,46 @@ export default function ReportIncidentPage({ onBack }) {
     setSubmitting(false)
     setSubmitted(true)
 
-    // Background: upload media and update incident record
-    if (photos.length > 0 || voiceBlob) {
-      uploadMedia(incidentId).then(({ mediaUrls, voiceUrl }) => {
-        if (mediaUrls.length > 0 || voiceUrl) {
-          supabase.from('incidents').update({
-            media_urls: mediaUrls,
-            voice_url: voiceUrl
-          }).eq('id', incident.id).then(() => {})
-        }
-      }).catch(e => console.error('Background media upload error:', e))
+    // Helper: fetch tenant and send alert email with media URLs
+    const sendAlert = (sentMediaUrls = [], sentVoiceUrl = null) => {
+      supabase.from('tenants').select('name, report_emails').eq('id', tenant.id).single()
+        .then(({ data: tenantData }) => {
+          if (tenantData?.report_emails?.length > 0) {
+            sendIncidentAlertEmail({
+              tenantName: tenantData.name,
+              gateName: gate?.name || 'Unknown Gate',
+              incidentType: TYPE_LABELS[incidentType] || incidentType,
+              severity,
+              description: description.trim(),
+              location: location.trim() || null,
+              officerName,
+              reportEmails: tenantData.report_emails,
+              mediaUrls: sentMediaUrls,
+              voiceUrl: sentVoiceUrl
+            }).catch(e => console.error('Incident email error:', e))
+          }
+        }).catch(e => console.error('Tenant fetch error:', e))
     }
 
-    // Background: send email alert
-    supabase.from('tenants').select('name, report_emails').eq('id', tenant.id).single().then(({ data: tenantData }) => {
-      if (tenantData?.report_emails?.length > 0) {
-        sendIncidentAlertEmail({
-          tenantName: tenantData.name,
-          gateName: gate?.name || 'Unknown Gate',
-          incidentType: TYPE_LABELS[incidentType] || incidentType,
-          severity,
-          description: description.trim(),
-          location: location.trim() || null,
-          officerName,
-          reportEmails: tenantData.report_emails
-        }).catch(e => console.error('Incident email error:', e))
-      }
-    }).catch(e => console.error('Tenant fetch error:', e))
+    // Background: upload media then send email with URLs included
+    if (photos.length > 0 || voiceBlob) {
+      uploadMedia(incidentId)
+        .then(({ mediaUrls, voiceUrl }) => {
+          if (mediaUrls.length > 0 || voiceUrl) {
+            supabase.from('incidents').update({
+              media_urls: mediaUrls,
+              voice_url: voiceUrl
+            }).eq('id', incidentId).then(() => {})
+          }
+          sendAlert(mediaUrls, voiceUrl)
+        })
+        .catch(e => {
+          console.error('Background media upload error:', e)
+          sendAlert()
+        })
+    } else {
+      sendAlert()
+    }
   }
 
   // ── SUCCESS SCREEN ─────────────────────────────────────────────────────────
