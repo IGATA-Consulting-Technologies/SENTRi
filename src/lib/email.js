@@ -23,7 +23,7 @@ export async function sendFlagAlertEmail({ tenantName, gateName, plate, visitorN
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
     <div style="background:#c0132a;padding:24px 28px;">
-      <div style="color:white;font-size:18px;font-weight:700;letter-spacing:0.05em;">🛡️ SENTRi</div>
+      <div style="color:white;font-size:18px;font-weight:700;letter-spacing:0.05em;">SENTRi</div>
       <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:4px;">Flag Alert — Immediate Attention Required</div>
     </div>
     <div style="padding:28px;">
@@ -60,7 +60,7 @@ export async function sendIncidentAlertEmail({ tenantName, gateName, incidentTyp
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
     <div style="background:${severityBg};padding:24px 28px;">
-      <div style="color:white;font-size:18px;font-weight:700;letter-spacing:0.05em;">🛡️ SENTRi</div>
+      <div style="color:white;font-size:18px;font-weight:700;letter-spacing:0.05em;">SENTRi</div>
       <div style="color:rgba(255,255,255,0.85);font-size:12px;margin-top:4px;">Incident Report — ${severity.toUpperCase()}</div>
     </div>
     <div style="padding:28px;">
@@ -79,8 +79,8 @@ export async function sendIncidentAlertEmail({ tenantName, gateName, incidentTyp
         ${officerName ? '<div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px;">Reported by</div><div style="font-size:14px;color:#1a1a2e;">' + officerName + '</div></div>' : ''}
       </div>
       <p style="margin:0 0 20px;font-size:13px;color:#6b7280;">Reported at <strong>${new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong></p>
-      ${mediaUrls && mediaUrls.length > 0 ? \`<div style="margin-bottom:20px;"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Attached Photos</div><div style="display:flex;gap:8px;flex-wrap:wrap;">\${mediaUrls.map(url => \`<a href="\${url}" target="_blank" style="display:block;"><img src="\${url}" style="width:120px;height:90px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e6ed;" /></a>\`).join('')}</div></div>\` : ''}
-      \${voiceUrl ? \`<div style="margin-bottom:20px;padding:14px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;"><div style="font-size:11px;color:#15803d;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Voice Note</div><a href="\${voiceUrl}" target="_blank" style="font-size:13px;font-weight:600;color:#15803d;text-decoration:none;">▶ Tap to download &amp; play voice note</a></div>\` : ''}
+      ${(mediaUrls && mediaUrls.length > 0) ? '<div style="margin-bottom:20px;"><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Attached Photos</div><div style="display:flex;gap:8px;flex-wrap:wrap;">' + mediaUrls.map(function(url){ return '<a href="' + url + '" target="_blank" style="display:block;"><img src="' + url + '" style="width:120px;height:90px;object-fit:cover;border-radius:6px;border:1.5px solid #e2e6ed;" /></a>'; }).join('') + '</div></div>' : ''}
+      ${voiceUrl ? '<div style="margin-bottom:20px;padding:14px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;"><div style="font-size:11px;color:#15803d;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Voice Note</div><a href="' + voiceUrl + '" target="_blank" style="font-size:13px;font-weight:600;color:#15803d;text-decoration:none;">&#9654; Tap to download &amp; play voice note</a></div>' : ''}
       <a href="https://app.sentri.ng/command" style="display:block;background:#1a56db;color:white;text-align:center;padding:14px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px;">Acknowledge on Command Dashboard →</a>
     </div>
     <div style="padding:16px 28px;border-top:1px solid #e2e6ed;display:flex;justify-content:space-between;">

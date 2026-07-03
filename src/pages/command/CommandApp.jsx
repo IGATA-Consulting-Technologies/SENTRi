@@ -113,7 +113,6 @@ export default function CommandApp() {
               padding: '6px 12px', borderRadius: '6px', border: 'none',
               background: activeTab === tab.key ? 'var(--accent)' : 'transparent',
               color: activeTab === tab.key ? 'white' : 'var(--text-1)',
-              fontWeight: 500,
               fontFamily: 'var(--font-body)', fontSize: '13px', fontWeight: 500,
               cursor: 'pointer', whiteSpace: 'nowrap', position: 'relative',
               flexShrink: 0
