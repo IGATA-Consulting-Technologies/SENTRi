@@ -295,7 +295,7 @@ export default function ReportIncidentPage({ onBack }) {
       <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '22px', fontWeight: '700', marginBottom: '8px' }}>Incident Reported</h2>
       <p style={{ fontSize: '14px', color: 'var(--text-2)', marginBottom: '8px' }}>Report submitted. Command has been notified.</p>
       {photos.length > 0 && <p style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '4px' }}>{photos.length} photo{photos.length > 1 ? 's' : ''} attached</p>}
-      {voiceBlob && <p style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '8px' }}>Voice note attached ({formatSecs(voiceDuration)})</p>}
+      {voiceDuration > 0 && <p style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '8px' }}>Voice note attached ({formatSecs(voiceDuration)})</p>}
       {severity === 'critical' && (
         <div style={{ background: 'rgba(192,19,42,0.1)', border: '1.5px solid rgba(192,19,42,0.3)', borderRadius: 'var(--radius-md)', padding: '12px 20px', marginBottom: '20px', color: 'var(--red)', fontWeight: '700', fontSize: '13px' }}>
           CRITICAL — Command alerted immediately.
@@ -389,7 +389,7 @@ export default function ReportIncidentPage({ onBack }) {
         {/* Add photo button */}
         {photos.length < MAX_PHOTOS && (
           <>
-            <input ref={photoInputRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
+            <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePhotoSelect} style={{ display: 'none' }} />
             <button onClick={() => photoInputRef.current?.click()}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', border: '1.5px dashed var(--border-med)', borderRadius: 'var(--radius-md)', background: 'var(--bg-1)', color: 'var(--text-1)', cursor: 'pointer', fontSize: '13px', fontWeight: '600', width: '100%', justifyContent: 'center' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -412,7 +412,7 @@ export default function ReportIncidentPage({ onBack }) {
               <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--green)' }}>Voice note recorded</div>
               <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>{formatSecs(voiceDuration)} recorded</div>
             </div>
-            <audio controls src={URL.createObjectURL(voiceBlob)} style={{ height: '32px', maxWidth: '140px' }} />
+            <span style={{ fontSize: '12px', color: 'var(--green)', fontStyle: 'italic' }}>Ready to submit</span>
             <button onClick={clearVoice} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '0 4px' }}>×</button>
           </div>
         ) : recording ? (
