@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'sentri-offline'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let db
 
@@ -15,9 +15,9 @@ async function getDB() {
       }
       if (!database.objectStoreNames.contains('active_sessions')) {
         database.createObjectStore('active_sessions', { keyPath: 'id' })
+      }
       if (!database.objectStoreNames.contains('checkout_cache')) {
         database.createObjectStore('checkout_cache', { keyPath: 'cacheKey' })
-      }
       }
     }
   })

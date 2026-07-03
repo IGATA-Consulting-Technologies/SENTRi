@@ -46,6 +46,13 @@ export default function CheckoutPage() {
       setLoading(false)
       return
     }
+    // Pre-populate checkout cache with all currently active movements so
+    // the guard has a full picture if the device goes offline mid-shift
+    if (data?.length) {
+      for (const movement of data) {
+        await cacheAdmittedMovement(movement).catch(() => {})
+      }
+    }
     setEntries(data || [])
     setLoading(false)
   }
