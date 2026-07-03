@@ -196,37 +196,40 @@ export default function ReportIncidentPage({ onBack }) {
       officerName = officerData ? (officerData.rank + ' ' + officerData.name) : guard?.name || null
     } catch (e) {}
 
-    // Insert incident first to get the ID for the media folder path
-    const { data: incident, error: err } = await supabase.from('incidents').insert({
+    // Generate ID client-side so we don't need a SELECT after insert
+    // (avoids needing a SELECT RLS policy for unauthenticated guards)
+    const incidentId = crypto.randomUUID()
+    const { error: err } = await supabase.from('incidents').insert({
+      id: incidentId,
       tenant_id: tenant.id, gate_id: gate?.id || null, officer_id: officerId,
       type: incidentType, severity, description: description.trim(),
       location: location.trim() || null, status: 'open'
-    }).select('id').single()
+    })
 
     if (err) { setError('Failed to submit: ' + err.message); setSubmitting(false); return }
 
-    // Upload media if any
-    let mediaUrls = []
-    let voiceUrl = null
-    if (photos.length > 0 || voiceBlob) {
-      const result = await uploadMedia(incident.id)
-      mediaUrls = result.mediaUrls
-      voiceUrl = result.voiceUrl
+    // Show success immediately — incident is recorded in the database.
+    // Media upload and email alert fire in the background so the guard
+    // is not blocked waiting for network operations to complete.
+    setSubmitting(false)
+    setSubmitted(true)
 
-      // Update incident with media URLs
-      if (mediaUrls.length > 0 || voiceUrl) {
-        await supabase.from('incidents').update({
-          media_urls: mediaUrls,
-          voice_url: voiceUrl
-        }).eq('id', incident.id)
-      }
+    // Background: upload media and update incident record
+    if (photos.length > 0 || voiceBlob) {
+      uploadMedia(incidentId).then(({ mediaUrls, voiceUrl }) => {
+        if (mediaUrls.length > 0 || voiceUrl) {
+          supabase.from('incidents').update({
+            media_urls: mediaUrls,
+            voice_url: voiceUrl
+          }).eq('id', incident.id).then(() => {})
+        }
+      }).catch(e => console.error('Background media upload error:', e))
     }
 
-    // Send email alert
-    try {
-      const { data: tenantData } = await supabase.from('tenants').select('name, report_emails').eq('id', tenant.id).single()
+    // Background: send email alert
+    supabase.from('tenants').select('name, report_emails').eq('id', tenant.id).single().then(({ data: tenantData }) => {
       if (tenantData?.report_emails?.length > 0) {
-        await sendIncidentAlertEmail({
+        sendIncidentAlertEmail({
           tenantName: tenantData.name,
           gateName: gate?.name || 'Unknown Gate',
           incidentType: TYPE_LABELS[incidentType] || incidentType,
@@ -235,12 +238,9 @@ export default function ReportIncidentPage({ onBack }) {
           location: location.trim() || null,
           officerName,
           reportEmails: tenantData.report_emails
-        })
+        }).catch(e => console.error('Incident email error:', e))
       }
-    } catch (e) { console.error('Incident email error:', e) }
-
-    setSubmitting(false)
-    setSubmitted(true)
+    }).catch(e => console.error('Tenant fetch error:', e))
   }
 
   // ── SUCCESS SCREEN ─────────────────────────────────────────────────────────
