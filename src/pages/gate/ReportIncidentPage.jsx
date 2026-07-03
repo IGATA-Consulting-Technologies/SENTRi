@@ -87,13 +87,22 @@ export default function ReportIncidentPage({ onBack }) {
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mr = new MediaRecorder(stream)
+      // Detect best supported codec for this device
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : ''
+      const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
       mediaRecorderRef.current = mr
       chunksRef.current = []
 
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const type = mr.mimeType || 'audio/webm'
+        const blob = new Blob(chunksRef.current, { type })
         setVoiceBlob(blob)
         stream.getTracks().forEach(t => t.stop())
       }
@@ -137,6 +146,26 @@ export default function ReportIncidentPage({ onBack }) {
 
   // ── UPLOAD HELPERS ─────────────────────────────────────────────────────────
 
+  async function compressImage(file) {
+    return new Promise((resolve) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const canvas = document.createElement('canvas')
+        const MAX = 1280
+        let w = img.width, h = img.height
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX }
+        if (h > MAX) { w = Math.round(w * MAX / h); h = MAX }
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+        canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', 0.82)
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+      img.src = url
+    })
+  }
+
   async function uploadMedia(incidentId) {
     const folder = `${tenant.id}/${incidentId}`
     const urls = []
@@ -144,11 +173,11 @@ export default function ReportIncidentPage({ onBack }) {
     for (let i = 0; i < photos.length; i++) {
       setUploadProgress(`Uploading photo ${i + 1} of ${photos.length}...`)
       const { file } = photos[i]
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${folder}/photo_${i + 1}.${ext}`
+      const compressed = await compressImage(file)
+      const path = `${folder}/photo_${i + 1}.jpg`
       const { error: upErr } = await supabase.storage
         .from('incident-media')
-        .upload(path, file, { upsert: true })
+        .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
       if (upErr) { console.error('Photo upload error:', upErr.message); continue }
       const { data: { publicUrl } } = supabase.storage
         .from('incident-media')
@@ -162,7 +191,7 @@ export default function ReportIncidentPage({ onBack }) {
       const path = `${folder}/voice.webm`
       const { error: vErr } = await supabase.storage
         .from('incident-media')
-        .upload(path, voiceBlob, { upsert: true, contentType: 'audio/webm' })
+        .upload(path, voiceBlob, { upsert: true, contentType: voiceBlob.type || 'audio/webm' })
       if (!vErr) {
         const { data: { publicUrl } } = supabase.storage
           .from('incident-media')
