@@ -64,6 +64,13 @@ export default function ReportIncidentPage({ onBack }) {
   function handlePhotoSelect(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
+    const MAX_FILE_MB = 10
+    const oversized = files.filter(f => f.size > MAX_FILE_MB * 1024 * 1024)
+    if (oversized.length > 0) {
+      setError(`One or more photos exceed ${MAX_FILE_MB}MB. Please select smaller files.`)
+      e.target.value = ''
+      return
+    }
     const remaining = MAX_PHOTOS - photos.length
     const toAdd = files.slice(0, remaining).map(file => ({
       file,
@@ -237,52 +244,49 @@ export default function ReportIncidentPage({ onBack }) {
 
     if (err) { setError('Failed to submit: ' + err.message); setSubmitting(false); return }
 
-    // Show success immediately — incident is recorded in the database.
-    // Media upload and email alert fire in the background so the guard
-    // is not blocked waiting for network operations to complete.
+    // Upload media and send email before showing success screen
+    // so mobile navigation cannot interrupt the upload
+    let finalMediaUrls = []
+    let finalVoiceUrl = null
+
+    if (photos.length > 0 || voiceBlob) {
+      try {
+        const result = await uploadMedia(incidentId)
+        finalMediaUrls = result.mediaUrls || []
+        finalVoiceUrl = result.voiceUrl || null
+        if (finalMediaUrls.length > 0 || finalVoiceUrl) {
+          await supabase.from('incidents').update({
+            media_urls: finalMediaUrls,
+            voice_url: finalVoiceUrl
+          }).eq('id', incidentId)
+        }
+      } catch (e) {
+        console.error('Media upload error:', e)
+        // Continue — incident saved, media just won't attach
+      }
+    }
+
+    // Send email alert — non-blocking
+    supabase.from('tenants').select('name, report_emails').eq('id', tenant.id).single()
+      .then(({ data: tenantData }) => {
+        if (tenantData?.report_emails?.length > 0) {
+          sendIncidentAlertEmail({
+            tenantName: tenantData.name,
+            gateName: gate?.name || 'Unknown Gate',
+            incidentType: TYPE_LABELS[incidentType] || incidentType,
+            severity,
+            description: description.trim(),
+            location: location.trim() || null,
+            officerName,
+            reportEmails: tenantData.report_emails,
+            mediaUrls: finalMediaUrls,
+            voiceUrl: finalVoiceUrl
+          }).catch(e => console.error('Incident email error:', e))
+        }
+      }).catch(e => console.error('Tenant fetch error:', e))
+
     setSubmitting(false)
     setSubmitted(true)
-
-    // Helper: fetch tenant and send alert email with media URLs
-    const sendAlert = (sentMediaUrls = [], sentVoiceUrl = null) => {
-      supabase.from('tenants').select('name, report_emails').eq('id', tenant.id).single()
-        .then(({ data: tenantData }) => {
-          if (tenantData?.report_emails?.length > 0) {
-            sendIncidentAlertEmail({
-              tenantName: tenantData.name,
-              gateName: gate?.name || 'Unknown Gate',
-              incidentType: TYPE_LABELS[incidentType] || incidentType,
-              severity,
-              description: description.trim(),
-              location: location.trim() || null,
-              officerName,
-              reportEmails: tenantData.report_emails,
-              mediaUrls: sentMediaUrls,
-              voiceUrl: sentVoiceUrl
-            }).catch(e => console.error('Incident email error:', e))
-          }
-        }).catch(e => console.error('Tenant fetch error:', e))
-    }
-
-    // Background: upload media then send email with URLs included
-    if (photos.length > 0 || voiceBlob) {
-      uploadMedia(incidentId)
-        .then(({ mediaUrls, voiceUrl }) => {
-          if (mediaUrls.length > 0 || voiceUrl) {
-            supabase.from('incidents').update({
-              media_urls: mediaUrls,
-              voice_url: voiceUrl
-            }).eq('id', incidentId).then(() => {})
-          }
-          sendAlert(mediaUrls, voiceUrl)
-        })
-        .catch(e => {
-          console.error('Background media upload error:', e)
-          sendAlert()
-        })
-    } else {
-      sendAlert()
-    }
   }
 
   // ── SUCCESS SCREEN ─────────────────────────────────────────────────────────
