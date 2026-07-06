@@ -261,7 +261,7 @@ export default function ReportIncidentPage({ onBack }) {
           }).eq('id', incidentId)
         }
       } catch (e) {
-        console.error('Media upload error:', e)
+        setError('Debug: ' + (e?.message || String(e))); setSubmitting(false); return
         // Continue — incident saved, media just won't attach
       }
     }
