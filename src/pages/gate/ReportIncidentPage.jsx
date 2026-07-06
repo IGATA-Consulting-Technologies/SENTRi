@@ -184,7 +184,7 @@ export default function ReportIncidentPage({ onBack }) {
       const path = `${folder}/photo_${i + 1}.jpg`
       const { error: upErr } = await supabase.storage
         .from('incident-media')
-        .upload(path, compressed, { upsert: true, contentType: 'image/jpeg' })
+        .upload(path, compressed && compressed.size > 0 ? compressed : file, { upsert: true, contentType: 'image/jpeg' })
       if (upErr) { console.error('Photo upload error:', upErr.message); continue }
       const { data: { publicUrl } } = supabase.storage
         .from('incident-media')
