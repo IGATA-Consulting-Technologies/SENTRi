@@ -184,7 +184,7 @@ export default function ReportIncidentPage({ onBack }) {
       const path = `${folder}/photo_${i + 1}.jpg`
       const { error: upErr } = await supabase.storage
         .from('incident-media')
-        .upload(path, file, { upsert: true, contentType: 'image/jpeg' })
+        .upload(path, file, { contentType: 'image/jpeg' })
       if (upErr) { console.error('Photo upload error:', upErr.message); continue }
       const { data: { publicUrl } } = supabase.storage
         .from('incident-media')
@@ -198,7 +198,7 @@ export default function ReportIncidentPage({ onBack }) {
       const path = `${folder}/voice.webm`
       const { error: vErr } = await supabase.storage
         .from('incident-media')
-        .upload(path, voiceBlob, { upsert: true, contentType: voiceBlob.type || 'audio/webm' })
+        .upload(path, voiceBlob, { contentType: voiceBlob.type || 'audio/webm' })
       if (!vErr) {
         const { data: { publicUrl } } = supabase.storage
           .from('incident-media')
